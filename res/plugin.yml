@@ -1,0 +1,34 @@
+main: me.cynadyde.teleportals.TeleportalsPlugin
+name: TeleporterDevice
+version: 1.14.1-0
+description: Build your own End Gateway portals in survival mode!
+authors:
+  - Cynadyde (May 2019)
+website: null
+commands:
+  teleportals:
+    description: The Teleportals Plugin command.
+permissions:
+  teleportals.*:
+    default: false
+    children:
+      teleportals.admin.*: true
+      teleportals.player.*: true
+  teleportals.admin.*:
+    default: op
+    children:
+      teleportals.admin.reload: true
+  teleportals.admin.reload:
+    default: false
+  teleportals.player.*:
+    default: true
+    children:
+      teleportals.craft: true
+      teleportals.activate: true
+      teleportals.use: true
+  teleportals.craft:
+    default: false
+  teleportals.activate:
+    default: false
+  teleportals.use:
+    default: false
