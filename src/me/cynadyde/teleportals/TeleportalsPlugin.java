@@ -3,6 +3,7 @@ package me.cynadyde.teleportals;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.EndGateway;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
@@ -12,12 +13,14 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.entity.EntityPortalEnterEvent;
-import org.bukkit.event.inventory.CraftItemEvent;
+import org.bukkit.event.entity.EntityPortalEvent;
+import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
+import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -35,8 +38,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
     private ShapedRecipe gatewayPrismRecipe;
 
     private String gatewayPrismDisplay = Utils.format("&bGateway Prism");
-    private String gatewayPrismDataHeader = Utils.format("&5&nSubspace Link");
-    private String gatewayPrismDataPrefix = Utils.format("  &0&k");
+    private String gatewayPrismDataHeader = Utils.format("&r&5&o&nSubspace Link");
+    private String gatewayPrismDataPrefix = Utils.format("&r&0&k  ");
 
     /**
      * Add the gateway prism recipe to the server, load subspaces, and register event listeners.
@@ -75,9 +78,12 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      * When crafting a gateway prism, set its subspace link using the enchanted book in the recipe.
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onCraftItem(CraftItemEvent event) {
+    public void onPrepareCraftItem(PrepareItemCraftEvent event) {
 
-        if (event.getRecipe().equals(gatewayPrismRecipe)) {
+        if (event.getRecipe() == null) {
+            return;
+        }
+        if (event.getRecipe().getResult().equals(gatewayPrismRecipe.getResult())) {
 
             String subspaceName = enchantsToSubspaceName(event.getInventory().getMatrix()[4]);
             setSubspaceLink(event.getInventory().getResult(), subspaceName);
@@ -106,17 +112,15 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
             if (block != null && block.getType().equals(Material.ENDER_CHEST)) {
 
                 // if the clicked block was part of a teleportal structure...
-                if (isTeleportalFrameAt(block)) {
+                Block teleportalBlock = getTeleportalAt(block);
+                if (teleportalBlock != null) {
 
                     // activate the teleportal...
-                    createTeleportalAt(block, getSubspaceLink(usedItem));
+                    createTeleportalAt(teleportalBlock, getSubspaceLink(usedItem));
 
                     // consume the gateway prism...
-                    if (usedItem.getAmount() > 1) {
+                    if (!event.getPlayer().getGameMode().equals(GameMode.CREATIVE)) {
                         usedItem.setAmount(usedItem.getAmount() - 1);
-                    }
-                    else {
-                        event.getPlayer().getInventory().setItemInMainHand(null);
                     }
                 }
             }
@@ -132,10 +136,11 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         Block block = event.getBlock();
 
         // a teleportal was broken...
-        if (isTeleportalFrameAt(block)) {
+        Block teleportalBlock = getTeleportalAt(block);
+        if (teleportalBlock != null) {
 
             // deactivate the teleportal...
-            removeTeleportalAt(block);
+            removeTeleportalAt(teleportalBlock);
         }
     }
 
@@ -143,9 +148,19 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      * Handle entities using teleportals.
      */
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
-    public void onEntityPortalEnter(EntityPortalEnterEvent event) {
+    public void onEntityPortal(EntityPortalEvent event) {
 
-        useTeleportal(event.getLocation().getBlock(), event.getEntity());
+        getLogger().info(event.toString());
+
+        useTeleportal(event.getFrom().getBlock(), event.getEntity());
+    }
+
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onPlayerPortal(PlayerPortalEvent event) {
+
+        getLogger().info(event.toString());
+
+        useTeleportal(event.getFrom().getBlock(), event.getPlayer());
     }
 
     /**
@@ -255,6 +270,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      */
     public String enchantsToSubspaceName(ItemStack enchantedBook) {
 
+
         if (enchantedBook == null) {
             return "";
         }
@@ -265,7 +281,12 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         if (itemMeta == null) {
             return "";
         }
-        Map<Enchantment, Integer> enchants = itemMeta.getEnchants();
+        if (!(itemMeta instanceof EnchantmentStorageMeta)) {
+            return "";
+        }
+        EnchantmentStorageMeta enchantMeta = (EnchantmentStorageMeta) itemMeta;
+        Map<Enchantment, Integer> enchants = enchantMeta.getStoredEnchants();
+
         List<String> elements = new ArrayList<>();
 
         for (Enchantment enchant : enchants.keySet()) {
@@ -388,10 +409,10 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
     /**
      * Test if the given block is part of a teleportal structure.
      */
-    public boolean isTeleportalFrameAt(Block block) {
+    public Block getTeleportalAt(Block block) {
 
         if (block == null) {
-            return false;
+            return null;
         }
         for (BlockFace dir : new BlockFace[]{BlockFace.SELF, BlockFace.UP, BlockFace.DOWN}) {
 
@@ -402,11 +423,11 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
 
                 if (relBlock.getRelative(BlockFace.DOWN).getType().equals(Material.OBSIDIAN)
                         && relBlock.getRelative(BlockFace.UP).getType().equals(Material.OBSIDIAN)) {
-                    return true;
+                    return relBlock;
                 }
             }
         }
-        return false;
+        return null;
     }
 
     /**
@@ -414,8 +435,15 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      */
     public void createTeleportalAt(Block block, String subspaceName) {
 
+        getLogger().info(String.format("Created Teleportal(%s) at %s(%d, %d, %d)!",
+                subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
+
         // set block to activated teleportal...
         block.setType(Material.END_GATEWAY);
+        EndGateway endGateway = (EndGateway) block.getState();
+        endGateway.setAge(100000L);
+        endGateway.setExitLocation(block.getLocation().add(0.0f, 10.0f, 0.0f));
+        endGateway.setExactTeleport(true);
 
         // spawn particle effects...
         // TODO creation particles and sfx...
@@ -431,6 +459,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         if (!subspaceLinks.contains(blockLoc)) {
             subspaceLinks.add(blockLoc);
         }
+
+        saveSubspaces(); // TEMPORARY
     }
 
     /**
@@ -451,9 +481,14 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         for (String subspaceName : subspaces.keySet()) {
             subspaces.get(subspaceName).remove(blockLoc);
 
+            getLogger().info(String.format("Removed teleportal(%s) at %s(%d, %d, %d)!",
+                    subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
+
             ItemStack gatewayPrism = createGatewayPrism(1, subspaceName);
             block.getWorld().dropItemNaturally(loc, gatewayPrism);
         }
+
+        saveSubspaces(); // TEMPORARY
     }
 
     /**
@@ -466,6 +501,9 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
 
             List<Location> subspaceLinks = subspaces.get(subspaceName);
             if (subspaceLinks.contains(blockLoc)) {
+
+                getLogger().info(String.format("Using teleportal(%s) at %s(%d, %d, %d)!",
+                        subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
 
                 Location exitLink;
                 int index = subspaceLinks.indexOf(blockLoc);
