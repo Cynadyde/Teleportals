@@ -435,32 +435,47 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      */
     public void createTeleportalAt(Block block, String subspaceName) {
 
-        getLogger().info(String.format("Created Teleportal(%s) at %s(%d, %d, %d)!",
-                subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
+        // TODO recognize teleportals by location instead of blocks
+        // so that yaw can be saved in the subspace link data, therefore, upon
+        // deactivating a teleportal, the ender chest may be oriented correctly.
 
-        // set block to activated teleportal...
-        block.setType(Material.END_GATEWAY);
-        EndGateway endGateway = (EndGateway) block.getState();
-        endGateway.setAge(100000L);
-        endGateway.setExitLocation(block.getLocation().add(0.0f, 10.0f, 0.0f));
-        endGateway.setExactTeleport(true);
-
-        // spawn particle effects...
-        // TODO creation particles and sfx...
-        Location loc = block.getLocation().add(0.5f, 0.5f, 0.5f);
-        block.getWorld().spawnParticle(Particle.FLASH, loc, 1);
-
-        // link teleportal to subspace if it is unique...
+        // if link is unique to that subspace...
         Location blockLoc = block.getLocation();
         if (!subspaces.containsKey(subspaceName)) {
             subspaces.put(subspaceName, new ArrayList<>());
         }
         List<Location> subspaceLinks = subspaces.get(subspaceName);
         if (!subspaceLinks.contains(blockLoc)) {
-            subspaceLinks.add(blockLoc);
-        }
 
-        saveSubspaces(); // TEMPORARY
+            getLogger().info(String.format("Created Teleportal(%s) at %s(%d, %d, %d)!",
+                    subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
+
+            // link the teleportal to that subspace...
+            subspaceLinks.add(blockLoc);
+
+            // TODO spawn particle effects and play sfx...
+            Location loc = block.getLocation().add(0.5f, 0.5f, 0.5f);
+            block.getWorld().spawnParticle(Particle.FLASH, loc, 1);
+
+            // set block to an end gateway...
+            block.setType(Material.END_GATEWAY);
+
+            // if there is an exit portal available...
+            if (subspaceLinks.size() > 1) {
+                int exitIndex = subspaceLinks.indexOf(blockLoc) + 1;
+                if (exitIndex >= subspaceLinks.size()) {
+                    exitIndex %= subspaceLinks.size();
+                }
+                Location exitLoc =
+
+                // make the end gateway functional...
+                EndGateway endGateway = (EndGateway) block.getState();
+                endGateway.setAge(100000L);
+                endGateway.setExitLocation(block.getLocation().add(0.0f, 10.0f, 0.0f));
+                endGateway.setExactTeleport(true);
+            }
+            saveSubspaces(); // TEMPORARY
+        }
     }
 
     /**
@@ -468,22 +483,25 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      */
     public void removeTeleportalAt(Block block) {
 
-        // set block to unactivated teleportal...
-        block.setType(Material.ENDER_CHEST);
-
-        // spawn particle effects...
-        // TODO removal particles and sfx...
-        Location loc = block.getLocation().add(0.5f, 0.5f, 0.5f);
-        block.getWorld().spawnParticle(Particle.EXPLOSION_HUGE, loc, 1);
-
-        // unlink teleportal from subspace...
+        // for each subspace containing this link...
         Location blockLoc = block.getLocation();
         for (String subspaceName : subspaces.keySet()) {
-            subspaces.get(subspaceName).remove(blockLoc);
+            List<Location> subspaceLinks = subspaces.get(subspaceName);
 
             getLogger().info(String.format("Removed teleportal(%s) at %s(%d, %d, %d)!",
                     subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
 
+            // unlink the teleportal from that subspace...
+            subspaceLinks.remove(blockLoc);
+
+            // TODO spawn particle effects and play sfx...
+            Location loc = block.getLocation().add(0.5f, 0.5f, 0.5f);
+            block.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, loc, 1);
+
+            // set block to an ender chest...
+            block.setType(Material.ENDER_CHEST);
+
+            // drop the teleportal's gateway prism...
             ItemStack gatewayPrism = createGatewayPrism(1, subspaceName);
             block.getWorld().dropItemNaturally(loc, gatewayPrism);
         }
