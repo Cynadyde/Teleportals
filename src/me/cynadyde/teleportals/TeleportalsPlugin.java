@@ -6,9 +6,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
-import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -17,6 +15,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityPortalEnterEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -27,7 +26,7 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * Main class of the Teleportals Plugin.
+ * Main class of the Teleportals plugin.
  */
 @SuppressWarnings({"WeakerAccess", "unused"})
 public class TeleportalsPlugin extends JavaPlugin implements Listener {
@@ -193,7 +192,10 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                     int y = Integer.parseInt(link[2]);
                     int z = Integer.parseInt(link[3]);
 
-                    subspaceLinks.add(new Location(w, x, y, z));
+                    Location loc = new Location(w, x, y, z);
+                    if (!subspaceLinks.contains(loc)) {
+                        subspaceLinks.add(loc);
+                    }
                 }
                 catch (NumberFormatException ignored) {
 
@@ -410,24 +412,24 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
     /**
      * Create a teleportal linked to the given subspace at a block.
      */
-    public void createTeleportalAt(Block block, ItemStack gatewayPrism) {
+    public void createTeleportalAt(Block block, String subspaceName) {
 
+        // set block to activated teleportal...
         block.setType(Material.END_GATEWAY);
-        Location pLoc = block.getLocation().add(0.5f, 0.5f, 0.5f);
-        block.getWorld().spawnParticle(Particle.FLASH, pLoc, 1);
 
-        Location eLoc = block.getLocation().add(0.5f, 0f, 0.5f);
-        ArmorStand armorStand = (ArmorStand) block.getWorld().spawnEntity(eLoc, EntityType.ARMOR_STAND);
+        // spawn particle effects...
+        Location loc = block.getLocation().add(0.5f, 0.5f, 0.5f);
+        block.getWorld().spawnParticle(Particle.FLASH, loc, 1);
 
-        armorStand.setArms(false);
-        armorStand.setBasePlate(true);
-        armorStand.setCustomName("Teleportal");
-        armorStand.setCustomNameVisible(false);
-        armorStand.setCollidable(false);
-        armorStand.setVisible(false);
-        armorStand.setMarker(true);
-
-        armorStand.setItemInHand(gatewayPrism);
+        // link teleportal to subspace if it is unique...
+        Location blockLoc = block.getLocation();
+        if (!subspaces.containsKey(subspaceName)) {
+            subspaces.put(subspaceName, new ArrayList<>());
+        }
+        List<Location> subspaceLinks = subspaces.get(subspaceName);
+        if (!subspaceLinks.contains(blockLoc)) {
+            subspaceLinks.add(blockLoc);
+        }
     }
 
     /**
@@ -435,7 +437,21 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      */
     public void removeTeleportalAt(Block block) {
 
-        // TODO remove teleportal
+        // set block to unactivated teleportal...
+        block.setType(Material.ENDER_CHEST);
+
+        // spawn particle effects...
+        Location loc = block.getLocation().add(0.5f, 0.5f, 0.5f);
+        block.getWorld().spawnParticle(Particle.EXPLOSION_HUGE, loc, 1);
+
+        // unlink teleportal from subspace...
+        Location blockLoc = block.getLocation();
+        for (String subspaceName : subspaces.keySet()) {
+            subspaces.get(subspaceName).remove(blockLoc);
+
+            ItemStack gatewayPrism = createGatewayPrism(1, subspaceName);
+            block.getWorld().dropItemNaturally(loc, gatewayPrism);
+        }
     }
 
     /**
@@ -443,6 +459,33 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      */
     public void useTeleportal(Block block, Entity entity) {
 
-        // TODO use teleportal
+        Location blockLoc = block.getLocation();
+        for (String subspaceName : subspaces.keySet()) {
+
+            List<Location> subspaceLinks = subspaces.get(subspaceName);
+            if (subspaceLinks.contains(blockLoc)) {
+
+                Location exitLink;
+                int index = subspaceLinks.indexOf(blockLoc);
+
+                if (subspaceLinks.size() > 1 && index == 0) {
+                    int randomIndex = Utils.RNG.nextInt(subspaceLinks.size() - 2) + 1;
+                    exitLink = subspaceLinks.get(randomIndex);
+                }
+                else {
+                    exitLink = subspaceLinks.get(0);
+                }
+                Location tpLoc = nearestSafeLoc(exitLink);
+                if (tpLoc == null) {
+                    tpLoc = blockLoc;
+                }
+                entity.teleport(tpLoc, PlayerTeleportEvent.TeleportCause.END_GATEWAY);
+            }
+        }
+    }
+
+    public Location nearestSafeLoc(Location loc) {
+
+        return null;  // TODO
     }
 }
