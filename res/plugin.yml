@@ -1,5 +1,5 @@
 main: me.cynadyde.teleportals.TeleportalsPlugin
-name: TeleporterDevice
+name: Teleportals
 version: 1.14.1-0
 description: Build your own End Gateway portals in survival mode!
 authors:
