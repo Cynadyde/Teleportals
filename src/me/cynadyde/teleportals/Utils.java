@@ -10,6 +10,9 @@ import java.util.Random;
 @SuppressWarnings("WeakerAccess")
 public class Utils {
 
+    /**
+     * Java's random number generator.
+     */
     public static final Random RNG = new Random();
 
     /**
