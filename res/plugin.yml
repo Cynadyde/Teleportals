@@ -4,7 +4,7 @@ version: 1.14.1-0
 description: Build your own End Gateway portals in survival mode!
 authors:
   - Cynadyde (May 2019)
-website: null
+website: "null"
 commands:
   teleportals:
     description: The Teleportals Plugin command.
