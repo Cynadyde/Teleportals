@@ -418,6 +418,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         block.setType(Material.END_GATEWAY);
 
         // spawn particle effects...
+        // TODO creation particles and sfx...
         Location loc = block.getLocation().add(0.5f, 0.5f, 0.5f);
         block.getWorld().spawnParticle(Particle.FLASH, loc, 1);
 
@@ -441,6 +442,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         block.setType(Material.ENDER_CHEST);
 
         // spawn particle effects...
+        // TODO removal particles and sfx...
         Location loc = block.getLocation().add(0.5f, 0.5f, 0.5f);
         block.getWorld().spawnParticle(Particle.EXPLOSION_HUGE, loc, 1);
 
@@ -486,6 +488,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
 
     public Location nearestSafeLoc(Location loc) {
 
-        return null;  // TODO
+
+        return loc;  // TODO
     }
 }
