@@ -6,26 +6,22 @@ import org.bukkit.block.data.Directional;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.EnderPearl;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.entity.EntityPortalEvent;
-import org.bukkit.event.entity.EntityTeleportEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
@@ -68,29 +64,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         getServer().addRecipe(gatewayPrismRecipe);
         getServer().getPluginManager().registerEvents(this, this);
 
-        /*portalEnterListener = new BukkitRunnable() {
-            @Override public void run() {
-
-                for (World world : getServer().getWorlds()) {
-                    for (Chunk chunk : world.getLoadedChunks()) {
-                        for (Entity entity : chunk.getEntities()) {
-
-                            Block block = entity.getLocation().getBlock();
-                            if (block.getType() == Material.END_GATEWAY) {
-
-                                useTeleportal(block, entity);
-                            }
-                        }
-                    }
-                }
-            }
-        }.runTaskTimer(this, 0L, 1L);*/
-
         loadPluginData();
-
-        // TODO autosave for plugin data?
-
-        // TODO save plugin data in sqlite database?
     }
 
     /**
@@ -98,8 +72,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      */
     @Override
     public void onDisable() {
-
-        // portalEnterListener.cancel();
 
         savePluginData();
     }
@@ -116,7 +88,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                 String subspaceName = "";
                 for (ItemStack ingredient : event.getInventory().getMatrix()) {
 
-                    if (ingredient.getType().equals(Material.ENCHANTED_BOOK)) {
+                    if (ingredient.getType() == Material.ENCHANTED_BOOK) {
                         subspaceName = createSubspaceName(ingredient);
                         break;
                     }
@@ -147,7 +119,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
 
             // if the clicked block was an ender chest...
             Block block = event.getClickedBlock();
-            if (block != null && block.getType().equals(Material.ENDER_CHEST)) {
+            if (block != null && block.getType() == Material.ENDER_CHEST) {
 
                 // if the clicked block was part of a teleportal structure...
                 Block teleportal = getTeleportalFrom(block);
@@ -182,23 +154,18 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
-    public void onEntityTeleport(EntityTeleportEvent event) {
-
-        getLogger().info(event.toString());
-    }
-
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
-    public void onPlayerTeleport(PlayerTeleportEvent event) {
-
-        getLogger().info(event.toString());
-    }
-
-    /*
+    /**
+     * Handle player ender-pearling into teleportal.
+     */
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onProjectileHitEvent(ProjectileHitEvent event) {
 
         getLogger().info(event.toString());
+
+        if (!(event.getEntity() instanceof EnderPearl)) {
+            return;
+        }
+        EnderPearl enderPearl = (EnderPearl) event.getEntity();
 
         Block block = event.getHitBlock();
         if (block == null || block.getType() != Material.END_GATEWAY) {
@@ -208,31 +175,11 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         if (teleportal == null) {
             return;
         }
-
-        // useTeleportal(teleportal, event.getEntity());
-
-    }*/
-
-    /**
-     * Handle entities using teleportals.
-     */
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
-    public void onEntityPortal(EntityPortalEvent event) {
-
-        getLogger().info(event.toString());
-
-        // useTeleportal(event.getFrom().getBlock(), event.getEntity());
-    }
-
-    /**
-     * Handle players using teleportals.
-     */
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
-    public void onPlayerPortalEnter(PlayerPortalEvent event) {
-
-        getLogger().info(event.toString());
-
-        // useTeleportal(event.getFrom().getBlock(), event.getPlayer());
+        if (!(enderPearl.getShooter() instanceof Entity)) {
+            return;
+        }
+        getLogger().info("Success!");
+        useTeleportal(teleportal, (Entity) enderPearl.getShooter());
     }
 
     /**
@@ -356,35 +303,26 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      */
     public boolean isGatewayPrism(ItemStack item) {
 
-        if (item == null || !item.getType().equals(Material.END_CRYSTAL)) {
+        if (item == null || item.getType() != Material.END_CRYSTAL) {
             return false;
         }
-        getLogger().info("IS AN END CRYSTAL");
-
         ItemMeta itemMeta = item.getItemMeta();
         if (itemMeta == null) {
             return false;
         }
-        getLogger().info("HAS ITEM META");
-
         List<String> itemLore = itemMeta.getLore();
 
         if (itemLore == null || itemLore.isEmpty()) {
             return false;
         }
-        getLogger().info("HAS LORE");
-
         int dataIndex = Utils.colorStripIndexOf(itemLore, gatewayPrismDataHeader) + 1;
 
         if (dataIndex <= 0 || dataIndex >= itemLore.size()) {
-            getLogger().info("BAD DATA INDEX: " + dataIndex);
             return false;
         }
-        getLogger().info("AAAAAAAAA");
         //noinspection RedundantIfStatement
         if (!ChatColor.stripColor(itemLore.get(dataIndex))
                 .startsWith(ChatColor.stripColor(gatewayPrismDataPrefix))) {
-            getLogger().info("NOOOOOOOOO");
             return false;
         }
         return true;
@@ -521,11 +459,11 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
 
             Block relBlock = block.getRelative(dir);
 
-            if ((relBlock.getType().equals(Material.ENDER_CHEST)
-                    || relBlock.getType().equals(Material.END_GATEWAY))) {
+            if (relBlock.getType() == Material.ENDER_CHEST
+                    || relBlock.getType() == Material.END_GATEWAY) {
 
-                if (relBlock.getRelative(BlockFace.DOWN).getType().equals(Material.OBSIDIAN)
-                        && relBlock.getRelative(BlockFace.UP).getType().equals(Material.OBSIDIAN)) {
+                if (relBlock.getRelative(BlockFace.DOWN).getType() == Material.OBSIDIAN
+                        && relBlock.getRelative(BlockFace.UP).getType() == Material.OBSIDIAN) {
                     return relBlock;
                 }
             }
@@ -545,7 +483,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
             subspaces.put(subspaceName, new ArrayList<>());
         }
         List<Location> subspaceLinks = subspaces.get(subspaceName);
-        if (!block.getType().equals(Material.END_GATEWAY)) {
+        if (block.getType() != Material.END_GATEWAY) {
             subspaceLinks.remove(loc);
         }
         if (!subspaceLinks.contains(loc)) {
@@ -569,38 +507,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
             // set block to an end gateway...
             block.setType(Material.END_GATEWAY);
 
-            // make the end gateway functional if possible...
-            /*if (block.getState() instanceof EndGateway) {
-
-                EndGateway endGateway = (EndGateway) block.getState();
-                endGateway.setExactTeleport(true);
-                endGateway.setExitLocation(effectsLoc);
-                endGateway.update();
-            }*/
-
-            if (block.getState() instanceof EndGateway) {
-                if (subspaceLinks.size() > 1) {
-
-                    int prevIndex = subspaceLinks.indexOf(loc) - 1;
-                    Location prevLoc = subspaceLinks.get(prevIndex);
-
-                    Block prevBlock = prevLoc.getBlock();
-                    if (prevBlock.getState() instanceof EndGateway) {
-                        EndGateway prevEndGateway = (EndGateway) prevBlock.getState();
-                        prevEndGateway.setExactTeleport(true);
-                        prevEndGateway.setExitLocation(loc);
-                        prevEndGateway.update();
-                    }
-
-                    int nextIndex = 0;
-                    Location nextLoc = subspaceLinks.get(0);
-
-                    EndGateway endGateway = (EndGateway) block.getState();
-                    endGateway.setExactTeleport(true);
-                    endGateway.setExitLocation(nextLoc);
-                    endGateway.update();
-                }
-            }
             savePluginData(); // FIXME TEMPORARY
         }
     }
@@ -656,17 +562,17 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      */
     public void useTeleportal(Block block, Entity entity) {
 
-        Location blockLoc = block.getLocation();
+        Location loc = block.getLocation();
         for (String subspaceName : subspaces.keySet()) {
 
             List<Location> subspaceLinks = subspaces.get(subspaceName);
-            if (subspaceLinks.contains(blockLoc)) {
+            if (subspaceLinks.contains(loc)) {
 
                 getLogger().info(String.format("Using teleportal(%s) at %s(%d, %d, %d)!",
                         subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
 
                 Location exitLink;
-                int index = subspaceLinks.indexOf(blockLoc);
+                int index = subspaceLinks.indexOf(loc);
 
                 if (index == 0 && subspaceLinks.size() > 1) {
                     int randomIndex = (int) Math.floor(Utils.RNG.nextFloat() * (subspaceLinks.size() - 1.0)) + 1;
@@ -675,25 +581,20 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                 else {
                     exitLink = subspaceLinks.get(0);
                 }
-                /*
-                Location tpLoc = nearestSafeLoc(exitLink);
-                if (tpLoc == null) {
-                    tpLoc = blockLoc;
-                }
-                */
-                Location offset = entity.getLocation().subtract(blockLoc);
-                Location tpLoc = exitLink.clone().add(offset);
+                BlockFace dir = directions.get(loc);
+                Location tpLoc = exitLink.clone().add(dir.getDirection()).add(0.5, -0.5, 0.5);
+
+                // tpLoc.setYaw(entity.getLocation().getYaw() + (dir.ordinal() * 90));
+                // tpLoc.setYaw((dir.ordinal() * 90) + Math.floorMod((int) entity.getLocation().getYaw(), 90) - 45);
+                float offset = entity.getLocation().getYaw() % 90f;
+                float teleDir = (dir.ordinal() * 90) - 180;
+                getLogger().info(String.format("yaw: %.02f, offset: %.02f, tele: %.02f, new: %.02f",
+                        entity.getLocation().getYaw(), offset, teleDir, teleDir + offset));
+                tpLoc.setYaw(teleDir + offset);
+                tpLoc.setPitch(entity.getLocation().getPitch());
 
                 entity.teleport(tpLoc, PlayerTeleportEvent.TeleportCause.END_GATEWAY);
             }
         }
-    }
-
-    /**
-     * Returns the nearest safe block from the given loc.
-     */
-    public Location nearestSafeLoc(Location loc) {
-
-        return loc;  // TODO nearest safe location algorithm
     }
 }
