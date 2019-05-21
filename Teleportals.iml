@@ -9,5 +9,6 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="spigot-1.14.1" level="project" />
+    <orderEntry type="library" name="annotations-16.0.2" level="project" />
   </component>
 </module>
