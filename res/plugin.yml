@@ -1,7 +1,7 @@
 main: me.cynadyde.teleportals.TeleportalsPlugin
 name: Teleportals
-version: 1.14.1-0
-api-version: 1.14
+version: "1.14.1-0"
+api-version: "1.14"
 description: Build your own End Gateway portals in survival mode!
 authors:
   - Cynadyde (May 2019)
