@@ -12,9 +12,13 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.entity.EntityPortalEvent;
+import org.bukkit.event.entity.EntityTeleportEvent;
+import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
@@ -64,7 +68,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         getServer().addRecipe(gatewayPrismRecipe);
         getServer().getPluginManager().registerEvents(this, this);
 
-        portalEnterListener = new BukkitRunnable() {
+        /*portalEnterListener = new BukkitRunnable() {
             @Override public void run() {
 
                 for (World world : getServer().getWorlds()) {
@@ -80,15 +84,9 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                     }
                 }
             }
-        }.runTaskTimer(this, 0L, 1L);
+        }.runTaskTimer(this, 0L, 1L);*/
 
         loadPluginData();
-
-        // TODO craft empty gateway prism
-
-        // TODO extract enchanted book from gateway prism
-
-        // TODO combine enchanted book into empty gateway prism
 
         // TODO autosave for plugin data?
 
@@ -101,7 +99,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
 
-        portalEnterListener.cancel();
+        // portalEnterListener.cancel();
 
         savePluginData();
     }
@@ -184,47 +182,58 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         }
     }
 
-    // FIXME cannot get these events to work... must regularly look for entities inside of end gateways :/
-    // look by entity? BETTER
-    // look by subspace link? NO WAY
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onEntityTeleport(EntityTeleportEvent event) {
 
-//    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
-//    public void onProjectileHitEvent(ProjectileHitEvent event) {
-//
-//        getLogger().info(event.toString());
-//
-//        Block block = event.getHitBlock();
-//        if (block == null || block.getType() != Material.END_GATEWAY) {
-//            return;
-//        }
-//        Block teleportal = getTeleportalFrom(block);
-//        if (teleportal == null) {
-//            return;
-//        }
-//        useTeleportal(teleportal, event.getEntity());
-//    }
-//
-//    /**
-//     * Handle entities using teleportals.
-//     */
-//    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
-//    public void onEntityPortalEnter(EntityPortalEnterEvent event) {
-//
-//        getLogger().info(event.toString());
-//
-//        useTeleportal(event.getLocation().getBlock(), event.getEntity());
-//    }
-//
-//    /**
-//     * Handle players using teleportals.
-//     */
-//    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
-//    public void onPlayerPortalEnter(PlayerPortalEvent event) {
-//
-//        getLogger().info(event.toString());
-//
-//        useTeleportal(event.getFrom().getBlock(), event.getPlayer());
-//    }
+        getLogger().info(event.toString());
+    }
+
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
+
+        getLogger().info(event.toString());
+    }
+
+    /*
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onProjectileHitEvent(ProjectileHitEvent event) {
+
+        getLogger().info(event.toString());
+
+        Block block = event.getHitBlock();
+        if (block == null || block.getType() != Material.END_GATEWAY) {
+            return;
+        }
+        Block teleportal = getTeleportalFrom(block);
+        if (teleportal == null) {
+            return;
+        }
+
+        // useTeleportal(teleportal, event.getEntity());
+
+    }*/
+
+    /**
+     * Handle entities using teleportals.
+     */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
+    public void onEntityPortal(EntityPortalEvent event) {
+
+        getLogger().info(event.toString());
+
+        // useTeleportal(event.getFrom().getBlock(), event.getEntity());
+    }
+
+    /**
+     * Handle players using teleportals.
+     */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
+    public void onPlayerPortalEnter(PlayerPortalEvent event) {
+
+        getLogger().info(event.toString());
+
+        // useTeleportal(event.getFrom().getBlock(), event.getPlayer());
+    }
 
     /**
      * Copy saved subspaces and their links from the plugin's data file.
@@ -560,7 +569,15 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
             // set block to an end gateway...
             block.setType(Material.END_GATEWAY);
 
-            /*// make the end gateway functional if possible...
+            // make the end gateway functional if possible...
+            /*if (block.getState() instanceof EndGateway) {
+
+                EndGateway endGateway = (EndGateway) block.getState();
+                endGateway.setExactTeleport(true);
+                endGateway.setExitLocation(effectsLoc);
+                endGateway.update();
+            }*/
+
             if (block.getState() instanceof EndGateway) {
                 if (subspaceLinks.size() > 1) {
 
@@ -583,7 +600,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                     endGateway.setExitLocation(nextLoc);
                     endGateway.update();
                 }
-            }*/
+            }
             savePluginData(); // FIXME TEMPORARY
         }
     }
