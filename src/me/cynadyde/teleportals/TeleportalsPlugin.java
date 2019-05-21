@@ -1,8 +1,8 @@
 package me.cynadyde.teleportals;
 
 import org.bukkit.*;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
+import org.bukkit.block.*;
+import org.bukkit.block.data.Directional;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
@@ -12,17 +12,17 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerPortalEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.material.Directional;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,12 +34,14 @@ import java.util.*;
 @SuppressWarnings({"WeakerAccess", "unused"})
 public class TeleportalsPlugin extends JavaPlugin implements Listener {
 
-    private Map<String, List<SubspaceLink>> subspaces = new HashMap<>();
+    private Map<String, List<Location>> subspaces = new HashMap<>();
+    private Map<Location, BlockFace> directions = new HashMap<>();
+    private BukkitTask portalEnterListener;
     private ShapedRecipe gatewayPrismRecipe;
 
     private String gatewayPrismDisplay = Utils.format("&bGateway Prism");
-    private String gatewayPrismDataHeader = Utils.format("&r&5&o&nSubspace Link");
-    private String gatewayPrismDataPrefix = Utils.format("&r&0&k  ");
+    private String gatewayPrismDataHeader = Utils.format("&r&7Subspace Link:");
+    private String gatewayPrismDataPrefix = Utils.format("&r&8&k ");
 
     /**
      * Add the gateway prism recipe to the server, load subspaces, and register event listeners.
@@ -62,7 +64,35 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         getServer().addRecipe(gatewayPrismRecipe);
         getServer().getPluginManager().registerEvents(this, this);
 
-        loadSubspaces();
+        portalEnterListener = new BukkitRunnable() {
+            @Override public void run() {
+
+                for (World world : getServer().getWorlds()) {
+                    for (Chunk chunk : world.getLoadedChunks()) {
+                        for (Entity entity : chunk.getEntities()) {
+
+                            Block block = entity.getLocation().getBlock();
+                            if (block.getType() == Material.END_GATEWAY) {
+
+                                useTeleportal(block, entity);
+                            }
+                        }
+                    }
+                }
+            }
+        }.runTaskTimer(this, 0L, 1L);
+
+        loadPluginData();
+
+        // TODO craft empty gateway prism
+
+        // TODO extract enchanted book from gateway prism
+
+        // TODO combine enchanted book into empty gateway prism
+
+        // TODO autosave for plugin data?
+
+        // TODO save plugin data in sqlite database?
     }
 
     /**
@@ -71,7 +101,9 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
 
-        saveSubspaces();
+        portalEnterListener.cancel();
+
+        savePluginData();
     }
 
     /**
@@ -110,6 +142,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         ItemStack usedItem = event.getPlayer().getInventory().getItemInMainHand();
         if (isGatewayPrism(usedItem)) {
 
+            getLogger().info("OOF");
+
             // cancel the interaction event...
             event.setCancelled(true);
 
@@ -121,11 +155,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                 Block teleportal = getTeleportalFrom(block);
                 if (teleportal != null) {
 
-                    Location loc = teleportal.getLocation();
-                    loc.setYaw(event.getPlayer().getLocation().getYaw());
-
                     // activate the teleportal...
-                    createTeleportalAt(loc, getSubspaceName(usedItem));
+                    createTeleportalAt(teleportal, getSubspaceName(usedItem));
 
                     // consume the gateway prism...
                     if (!event.getPlayer().getGameMode().equals(GameMode.CREATIVE)) {
@@ -149,52 +180,91 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         if (teleportal != null) {
 
             // deactivate the teleportal...
-            removeTeleportalAt(teleportal.getLocation());
+            removeTeleportalAt(teleportal);
         }
     }
 
-    /**
-     * Handle entities using teleportals.
-     */
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
-    public void onEntityPortal(EntityPortalEvent event) {
+    // FIXME cannot get these events to work... must regularly look for entities inside of end gateways :/
+    // look by entity? BETTER
+    // look by subspace link? NO WAY
 
-        getLogger().info(event.toString());
-
-        useTeleportal(event.getFrom().getBlock(), event.getEntity());
-    }
-
-    /**
-     * Handle players using teleportals.
-     */
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
-    public void onPlayerPortal(PlayerPortalEvent event) {
-
-        getLogger().info(event.toString());
-
-        useTeleportal(event.getFrom().getBlock(), event.getPlayer());
-    }
+//    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+//    public void onProjectileHitEvent(ProjectileHitEvent event) {
+//
+//        getLogger().info(event.toString());
+//
+//        Block block = event.getHitBlock();
+//        if (block == null || block.getType() != Material.END_GATEWAY) {
+//            return;
+//        }
+//        Block teleportal = getTeleportalFrom(block);
+//        if (teleportal == null) {
+//            return;
+//        }
+//        useTeleportal(teleportal, event.getEntity());
+//    }
+//
+//    /**
+//     * Handle entities using teleportals.
+//     */
+//    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+//    public void onEntityPortalEnter(EntityPortalEnterEvent event) {
+//
+//        getLogger().info(event.toString());
+//
+//        useTeleportal(event.getLocation().getBlock(), event.getEntity());
+//    }
+//
+//    /**
+//     * Handle players using teleportals.
+//     */
+//    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+//    public void onPlayerPortalEnter(PlayerPortalEvent event) {
+//
+//        getLogger().info(event.toString());
+//
+//        useTeleportal(event.getFrom().getBlock(), event.getPlayer());
+//    }
 
     /**
      * Copy saved subspaces and their links from the plugin's data file.
      */
-    public void loadSubspaces() {
+    public void loadPluginData() {
 
         // get the plugin's yaml data file...
         File file = new File(getDataFolder(), "data.yml");
         YamlConfiguration ymlData = YamlConfiguration.loadConfiguration(file);
 
-        // get the subspaces section...
-        if (!ymlData.contains("subspaces")) {
-            ymlData.createSection("subspaces");
+        // get the enderchest dirs section...
+        ConfigurationSection ymlDirections = ymlData.getConfigurationSection("directions");
+        if (ymlDirections == null) {
+            ymlDirections = ymlData.createSection("directions");
         }
+        // load each ender-chest direction in the data file...
+        for (String key : ymlDirections.getKeys(false)) {
+            try {
+                Location loc = Utils.stringToLocation(key);
+                if (loc == null || loc.getWorld() == null) {
+                    continue;
+                }
+                BlockFace dir = BlockFace.valueOf(ymlDirections.getString(key));
+                directions.put(loc, dir);
+            }
+            catch (IllegalArgumentException ignored) {
+
+            }
+        }
+
+        // get the subspaces section...
         ConfigurationSection ymlSubspaces = ymlData.getConfigurationSection("subspaces");
-        assert ymlSubspaces != null;
+        if (ymlSubspaces == null) {
+            ymlSubspaces = ymlData.createSection("subspaces");
+        }
 
         // for each subspace in the data file...
         for (String subspaceName : ymlSubspaces.getKeys(false)) {
 
-            List<SubspaceLink> subspaceLinks = new ArrayList<>();
+            List<Location> subspaceLinks = new ArrayList<>();
 
             List<?> subspace = ymlSubspaces.getList(subspaceName);
             if (subspace == null || subspace.isEmpty()) {
@@ -206,32 +276,12 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                     continue;
                 }
                 // get the deserialized location...
-                String[] link = ((String) obj).split(",", 5);
-                if (link.length != 5) {
+                Location loc = Utils.stringToLocation((String) obj);
+                if (loc == null || loc.getWorld() == null) {
                     continue;
                 }
-                try {
-                    World world = getServer().getWorld(link[0]);
-                    if (world == null) {
-                        continue;
-                    }
-                    int x = Integer.parseInt(link[1]);
-                    int y = Integer.parseInt(link[2]);
-                    int z = Integer.parseInt(link[3]);
-
-                    int dirI = Integer.parseInt(link[4]);
-                    if (!((0 <= dirI) && (dirI < 4))) {
-                        continue;
-                    }
-                    BlockFace dir = BlockFace.values()[dirI];
-
-                    SubspaceLink loc = new SubspaceLink(world, x, y, z, dir);
-                    if (!subspaceLinks.contains(loc)) {
-                        subspaceLinks.add(loc);
-                    }
-                }
-                catch (IllegalArgumentException ignored) {
-
+                if (!subspaceLinks.contains(loc)) {
+                    subspaceLinks.add(loc);
                 }
             }
             // add all collected subspace links to the plugin...
@@ -242,11 +292,25 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
     /**
      * Copy loaded subspaces and their links to the plugin's data file.
      */
-    public void saveSubspaces() {
+    public void savePluginData() {
 
         // get the plugin's yaml data file...
         File file = new File(getDataFolder(), "data.yml");
         YamlConfiguration ymlData = YamlConfiguration.loadConfiguration(file);
+
+        // get a clean directions section...
+        ymlData.set("directions", null);
+        ConfigurationSection ymlDirections = ymlData.createSection("directions");
+
+        // for each direction in loaded data...
+        for (Location loc : directions.keySet()) {
+
+            // write the serialized direction to yaml...
+            String key = Utils.locationToString(loc);
+            String val = directions.get(loc).name();
+
+            ymlDirections.set(key, val);
+        }
 
         // get a clean subspaces section...
         ymlData.set("subspaces", null);
@@ -257,21 +321,18 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
 
             // for each link in the subspace...
             List<String> serializedLinks = new ArrayList<>();
-            for (SubspaceLink subspaceLink : subspaces.get(subspaceName)) {
+            for (Location subspaceLink : subspaces.get(subspaceName)) {
 
                 // write the serialized link to yaml...
-                String link = String.format("%s,%d,%d,%d,%d",
-                        subspaceLink.getWorld().getName(),
-                        subspaceLink.getX(),
-                        subspaceLink.getY(),
-                        subspaceLink.getZ(),
-                        subspaceLink.getDir().ordinal()
-                );
+                if (subspaceLink.getWorld() == null) {
+                    continue;
+                }
+                String link = Utils.locationToString(subspaceLink);
                 serializedLinks.add(link);
             }
             ymlSubspaces.set(subspaceName, serializedLinks);
         }
-        // save the data yaml to file...
+        // save the yaml data to file...
         try {
             ymlData.save(file);
         }
@@ -289,25 +350,32 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         if (item == null || !item.getType().equals(Material.END_CRYSTAL)) {
             return false;
         }
+        getLogger().info("IS AN END CRYSTAL");
+
         ItemMeta itemMeta = item.getItemMeta();
         if (itemMeta == null) {
             return false;
         }
+        getLogger().info("HAS ITEM META");
+
         List<String> itemLore = itemMeta.getLore();
 
         if (itemLore == null || itemLore.isEmpty()) {
             return false;
         }
-        if (!itemLore.contains(gatewayPrismDataHeader)) {
-            return false;
-        }
-        int dataIndex = itemLore.indexOf(gatewayPrismDataHeader) + 1;
+        getLogger().info("HAS LORE");
 
-        if (dataIndex >= itemLore.size()) {
+        int dataIndex = Utils.colorStripIndexOf(itemLore, gatewayPrismDataHeader) + 1;
+
+        if (dataIndex <= 0 || dataIndex >= itemLore.size()) {
+            getLogger().info("BAD DATA INDEX: " + dataIndex);
             return false;
         }
+        getLogger().info("AAAAAAAAA");
         //noinspection RedundantIfStatement
-        if (!itemLore.get(dataIndex).startsWith(gatewayPrismDataPrefix)) {
+        if (!ChatColor.stripColor(itemLore.get(dataIndex))
+                .startsWith(ChatColor.stripColor(gatewayPrismDataPrefix))) {
+            getLogger().info("NOOOOOOOOO");
             return false;
         }
         return true;
@@ -348,11 +416,9 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         if (itemLore == null) {
             itemLore = new ArrayList<>();
         }
-        if (!itemLore.contains(gatewayPrismDataHeader)) {
-            return "";
-        }
-        int dataIndex = itemLore.indexOf(gatewayPrismDataHeader) + 1;
-        if (dataIndex >= itemLore.size()) {
+        int dataIndex = Utils.colorStripIndexOf(itemLore, gatewayPrismDataHeader) + 1;
+
+        if (dataIndex <= 0 || dataIndex >= itemLore.size()) {
             return "";
         }
         String dataLine = itemLore.get(dataIndex);
@@ -381,8 +447,9 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         if (!itemLore.contains(gatewayPrismDataHeader)) {
             itemLore.add(gatewayPrismDataHeader);
         }
-        int dataIndex = itemLore.indexOf(gatewayPrismDataHeader) + 1;
-        if (dataIndex < itemLore.size()) {
+        int dataIndex = Utils.colorStripIndexOf(itemLore, gatewayPrismDataHeader) + 1;
+
+        if (dataIndex <= 0 || dataIndex < itemLore.size()) {
             itemLore.set(dataIndex, gatewayPrismDataPrefix + subspaceName);
         }
         else {
@@ -425,10 +492,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      */
     public boolean isTeleportal(Location loc) {
 
-        SubspaceLink link = SubspaceLink.from(loc);
-
         for (String subspaceName : subspaces.keySet()) {
-            if (subspaces.get(subspaceName).contains(link)) {
+            if (subspaces.get(subspaceName).contains(loc)) {
                 return true;
             }
         }
@@ -462,89 +527,109 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
     /**
      * Create a teleportal linked to the given subspace at a block.
      */
-    public void createTeleportalAt(Location loc, String subspaceName) {
+    public void createTeleportalAt(Block block, String subspaceName) {
 
-        if (loc.getWorld() == null) {
-            return;
-        }
-        // get the block and the direction it is facing...
-        Block block = loc.getBlock();
-        BlockFace dir;
-
-        if (block.getState() instanceof Directional) {
-            dir = ((Directional) block.getState()).getFacing();
-        }
-        else {
-            dir = BlockFace.NORTH;
-        }
-        SubspaceLink link = SubspaceLink.from(loc, dir);
+        Location loc = block.getLocation();
 
         // if the link for that location is unique to the given subspace...
         if (!subspaces.containsKey(subspaceName)) {
             subspaces.put(subspaceName, new ArrayList<>());
         }
-        List<SubspaceLink> subspaceLinks = subspaces.get(subspaceName);
-        if (!subspaceLinks.contains(link)) {
+        List<Location> subspaceLinks = subspaces.get(subspaceName);
+        if (!block.getType().equals(Material.END_GATEWAY)) {
+            subspaceLinks.remove(loc);
+        }
+        if (!subspaceLinks.contains(loc)) {
 
             getLogger().info(String.format("Created Teleportal(%s) at %s(%d, %d, %d)!",
                     subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
 
             // link the teleportal to that subspace...
-            subspaceLinks.add(link);
+            subspaceLinks.add(loc);
 
             // spawn particle effects and play sfx...
-            Location particleLoc = loc.add(0.5f, 0.5f, 0.5f);
-            block.getWorld().spawnParticle(Particle.FLASH, particleLoc, 3, 0.1, 0.1, 0.1);
-            block.getWorld().spawnParticle(Particle.END_ROD, particleLoc, 100, 0, 0, 0, 0.1);
-            block.getWorld().playSound(particleLoc, Sound.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.BLOCKS, 1.5f, 0.5f);
+            Location effectsLoc = loc.clone().add(0.5, 0.5, 0.5);
+            block.getWorld().spawnParticle(Particle.FLASH, effectsLoc, 3, 0.1, 0.1, 0.1); // FIXME different effect plz?
+            block.getWorld().spawnParticle(Particle.END_ROD, effectsLoc, 100, 0, 0, 0, 0.1);
+            block.getWorld().playSound(effectsLoc, Sound.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.BLOCKS, 1.5f, 0.5f);
 
+            // save the block's facing direction if possible...
+            if (block.getBlockData() instanceof Directional) {
+                directions.put(loc, ((Directional) block.getBlockData()).getFacing());
+            }
             // set block to an end gateway...
             block.setType(Material.END_GATEWAY);
 
-            saveSubspaces(); // TEMPORARY
+            /*// make the end gateway functional if possible...
+            if (block.getState() instanceof EndGateway) {
+                if (subspaceLinks.size() > 1) {
+
+                    int prevIndex = subspaceLinks.indexOf(loc) - 1;
+                    Location prevLoc = subspaceLinks.get(prevIndex);
+
+                    Block prevBlock = prevLoc.getBlock();
+                    if (prevBlock.getState() instanceof EndGateway) {
+                        EndGateway prevEndGateway = (EndGateway) prevBlock.getState();
+                        prevEndGateway.setExactTeleport(true);
+                        prevEndGateway.setExitLocation(loc);
+                        prevEndGateway.update();
+                    }
+
+                    int nextIndex = 0;
+                    Location nextLoc = subspaceLinks.get(0);
+
+                    EndGateway endGateway = (EndGateway) block.getState();
+                    endGateway.setExactTeleport(true);
+                    endGateway.setExitLocation(nextLoc);
+                    endGateway.update();
+                }
+            }*/
+            savePluginData(); // FIXME TEMPORARY
         }
     }
 
     /**
      * Remove the teleportal at a block.
      */
-    public void removeTeleportalAt(Location loc) {
+    public void removeTeleportalAt(Block block) {
 
-        if (loc.getWorld() == null) {
-            return;
-        }
-        Block block = loc.getBlock();
+        Location loc = block.getLocation();
 
         // for each subspace containing this link...
-        SubspaceLink link = SubspaceLink.from(block.getLocation(), BlockFace.NORTH);
         for (String subspaceName : subspaces.keySet()) {
+            List<Location> subspaceLinks = subspaces.get(subspaceName);
 
-            List<SubspaceLink> subspaceLinks = subspaces.get(subspaceName);
+            if (subspaceLinks.contains(loc)) {
 
-            if (subspaceLinks.contains(link)) {
                 getLogger().info(String.format("Removed teleportal(%s) at %s(%d, %d, %d)!",
                         subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
 
                 // unlink the teleportal from that subspace...
-                subspaceLinks.remove(link);
+                subspaceLinks.remove(loc);
 
                 // spawn particle effects and play sfx...
-                Location particleLoc = loc.add(0.5f, 0.5f, 0.5f);
-                block.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, particleLoc, 3, 0.1, 0.1, 0.1);
-                block.getWorld().spawnParticle(Particle.DRAGON_BREATH, particleLoc, 100, 0, 0, 0, 0.1);
-                block.getWorld().playSound(particleLoc, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, SoundCategory.BLOCKS, 1.5f, 0.5f);
+                Location effectsLoc = loc.clone().add(0.5, 0.5, 0.5);
+                block.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, effectsLoc, 3, 0.1, 0.1, 0.1);
+                block.getWorld().spawnParticle(Particle.DRAGON_BREATH, effectsLoc, 100, 0, 0, 0, 0.1);
+                block.getWorld().playSound(effectsLoc, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, SoundCategory.BLOCKS, 1.5f, 0.5f);
 
                 // set block to an ender chest...
                 block.setType(Material.ENDER_CHEST);
-                if (block.getState() instanceof Directional) {
-                    ((Directional) block.getState()).setFacingDirection(link.);
-                }
+                if (block.getBlockData() instanceof Directional) {
 
+                    BlockFace dir = directions.remove(loc);
+                    if (dir == null) {
+                        dir = BlockFace.NORTH;
+                    }
+                    Directional blockData = (Directional) block.getBlockData();
+                    blockData.setFacing(dir);
+                    block.setBlockData(blockData);
+                }
                 // drop the teleportal's gateway prism...
                 ItemStack gatewayPrism = createGatewayPrism(1, subspaceName);
                 block.getWorld().dropItemNaturally(loc, gatewayPrism);
 
-                saveSubspaces(); // TEMPORARY
+                savePluginData(); // FIXME TEMPORARY
             }
         }
     }
@@ -566,19 +651,32 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                 Location exitLink;
                 int index = subspaceLinks.indexOf(blockLoc);
 
-                if (subspaceLinks.size() > 1 && index == 0) {
-                    int randomIndex = Utils.RNG.nextInt(subspaceLinks.size() - 2) + 1;
+                if (index == 0 && subspaceLinks.size() > 1) {
+                    int randomIndex = (int) Math.floor(Utils.RNG.nextFloat() * (subspaceLinks.size() - 1.0)) + 1;
                     exitLink = subspaceLinks.get(randomIndex);
                 }
                 else {
                     exitLink = subspaceLinks.get(0);
                 }
+                /*
                 Location tpLoc = nearestSafeLoc(exitLink);
                 if (tpLoc == null) {
                     tpLoc = blockLoc;
                 }
+                */
+                Location offset = entity.getLocation().subtract(blockLoc);
+                Location tpLoc = exitLink.clone().add(offset);
+
                 entity.teleport(tpLoc, PlayerTeleportEvent.TeleportCause.END_GATEWAY);
             }
         }
+    }
+
+    /**
+     * Returns the nearest safe block from the given loc.
+     */
+    public Location nearestSafeLoc(Location loc) {
+
+        return loc;  // TODO nearest safe location algorithm
     }
 }
