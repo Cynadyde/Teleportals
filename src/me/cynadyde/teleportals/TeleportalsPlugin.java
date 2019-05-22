@@ -112,8 +112,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         ItemStack usedItem = event.getPlayer().getInventory().getItemInMainHand();
         if (isGatewayPrism(usedItem)) {
 
-            getLogger().info("OOF");
-
             // cancel the interaction event...
             event.setCancelled(true);
 
@@ -160,15 +158,13 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onProjectileHitEvent(ProjectileHitEvent event) {
 
-        getLogger().info(event.toString());
-
         if (!(event.getEntity() instanceof EnderPearl)) {
             return;
         }
         EnderPearl enderPearl = (EnderPearl) event.getEntity();
 
         Block block = event.getHitBlock();
-        if (block == null || block.getType() != Material.END_GATEWAY) {
+        if (block == null || event.getHitBlockFace() == null || block.getType() != Material.END_GATEWAY) {
             return;
         }
         Block teleportal = getTeleportalFrom(block);
@@ -178,8 +174,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         if (!(enderPearl.getShooter() instanceof Entity)) {
             return;
         }
-        getLogger().info("Success!");
-        useTeleportal(teleportal, (Entity) enderPearl.getShooter());
+        useTeleportal(teleportal, (Entity) enderPearl.getShooter(), event.getHitBlockFace());
     }
 
     /**
@@ -488,8 +483,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         }
         if (!subspaceLinks.contains(loc)) {
 
-            getLogger().info(String.format("Created Teleportal(%s) at %s(%d, %d, %d)!",
-                    subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
+            // getLogger().info(String.format("Created Teleportal(%s) at %s(%d, %d, %d)!",
+            //         subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
 
             // link the teleportal to that subspace...
             subspaceLinks.add(loc);
@@ -524,8 +519,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
 
             if (subspaceLinks.contains(loc)) {
 
-                getLogger().info(String.format("Removed teleportal(%s) at %s(%d, %d, %d)!",
-                        subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
+                // getLogger().info(String.format("Removed teleportal(%s) at %s(%d, %d, %d)!",
+                //         subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
 
                 // unlink the teleportal from that subspace...
                 subspaceLinks.remove(loc);
@@ -560,7 +555,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
     /**
      * Have an entity use the teleportal at the given block.
      */
-    public void useTeleportal(Block block, Entity entity) {
+    public void useTeleportal(Block block, Entity entity, BlockFace dir) {
 
         Location loc = block.getLocation();
         for (String subspaceName : subspaces.keySet()) {
@@ -568,31 +563,39 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
             List<Location> subspaceLinks = subspaces.get(subspaceName);
             if (subspaceLinks.contains(loc)) {
 
-                getLogger().info(String.format("Using teleportal(%s) at %s(%d, %d, %d)!",
-                        subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
+                // getLogger().info(String.format("Using teleportal(%s) at %s(%d, %d, %d)!",
+                //         subspaceName, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
 
+                // get an exit link for this teleportal...
                 Location exitLink;
                 int index = subspaceLinks.indexOf(loc);
 
+                // if this is the first of several links in the subspace, choose any other link at random...
                 if (index == 0 && subspaceLinks.size() > 1) {
                     int randomIndex = (int) Math.floor(Utils.RNG.nextFloat() * (subspaceLinks.size() - 1.0)) + 1;
                     exitLink = subspaceLinks.get(randomIndex);
                 }
+                // else, always go to the first link in this subspace...
                 else {
                     exitLink = subspaceLinks.get(0);
                 }
-                BlockFace dir = directions.get(loc);
-                Location tpLoc = exitLink.clone().add(dir.getDirection()).add(0.5, -0.5, 0.5);
+                Location tpLoc = exitLink.clone().add(0.5, -0.5, 0.5);
 
-                // tpLoc.setYaw(entity.getLocation().getYaw() + (dir.ordinal() * 90));
-                // tpLoc.setYaw((dir.ordinal() * 90) + Math.floorMod((int) entity.getLocation().getYaw(), 90) - 45);
-                float offset = entity.getLocation().getYaw() % 90f;
-                float teleDir = (dir.ordinal() * 90) - 180;
-                getLogger().info(String.format("yaw: %.02f, offset: %.02f, tele: %.02f, new: %.02f",
-                        entity.getLocation().getYaw(), offset, teleDir, teleDir + offset));
-                tpLoc.setYaw(teleDir + offset);
+                // choose the appropriate side of the teleportal to emerge from...
+                BlockFace thisDir = directions.get(loc);
+                BlockFace exitDir = directions.get(exitLink);
+                int dirOffset = (dir.ordinal() - thisDir.ordinal());
+
+                tpLoc.add(BlockFace.values()[(exitDir.ordinal() + dirOffset) % 4].getDirection());
+
+                // choose the appropriate yaw and pitch to emerge with...
+                float thisYaw = (thisDir.ordinal() * 90) + 180;
+                float exitYaw = exitDir.ordinal() * 90;
+
+                tpLoc.setYaw(exitYaw - (thisYaw - entity.getLocation().getYaw()));
                 tpLoc.setPitch(entity.getLocation().getPitch());
 
+                // teleport the entity...
                 entity.teleport(tpLoc, PlayerTeleportEvent.TeleportCause.END_GATEWAY);
             }
         }
