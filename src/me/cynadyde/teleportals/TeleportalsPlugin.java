@@ -22,6 +22,7 @@ import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
@@ -34,10 +35,12 @@ import java.util.*;
 @SuppressWarnings({"WeakerAccess", "unused"})
 public class TeleportalsPlugin extends JavaPlugin implements Listener {
 
+    public final long autosavePeriod = 20 * 60 * 10; // 10 minutes
+
     private Map<String, List<Location>> subspaces = new HashMap<>();
     private Map<Location, BlockFace> directions = new HashMap<>();
-    private BukkitTask portalEnterListener;
     private ShapedRecipe gatewayPrismRecipe;
+    private BukkitTask autosaveTask;
 
     private String gatewayPrismDisplay = Utils.format("&bGateway Prism");
     private String gatewayPrismDataHeader = Utils.format("&r&7Subspace Link:");
@@ -48,6 +51,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      */
     @Override
     public void onEnable() {
+
+        // OPTION replace yaml file with sqlite database?
 
         NamespacedKey recipeKey = new NamespacedKey(this, "gateway_prism");
         ItemStack recipeResult = createGatewayPrism(2, "");
@@ -65,6 +70,13 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(this, this);
 
         loadPluginData();
+
+        autosaveTask = new BukkitRunnable() {
+            @Override public void run() {
+
+                savePluginData();
+            }
+        }.runTaskTimer(this, autosavePeriod, autosavePeriod);
     }
 
     /**
@@ -72,6 +84,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      */
     @Override
     public void onDisable() {
+
+        autosaveTask.cancel();
 
         savePluginData();
     }
@@ -491,9 +505,12 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
 
             // spawn particle effects and play sfx...
             Location effectsLoc = loc.clone().add(0.5, 0.5, 0.5);
-            block.getWorld().spawnParticle(Particle.FLASH, effectsLoc, 3, 0.1, 0.1, 0.1); // FIXME different effect plz?
-            block.getWorld().spawnParticle(Particle.END_ROD, effectsLoc, 100, 0, 0, 0, 0.1);
-            block.getWorld().playSound(effectsLoc, Sound.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.BLOCKS, 1.5f, 0.5f);
+            block.getWorld().spawnParticle(Particle.END_ROD, effectsLoc, 200, 0.1, 0.1, 0.1, 0.10);
+            block.getWorld().spawnParticle(Particle.DRAGON_BREATH, effectsLoc, 100, 0.25, 0.25, 0.25, 0.075);
+            block.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, effectsLoc, 50, 0.1, 0.1, 0.1, 0.025);
+            block.getWorld().playSound(effectsLoc, Sound.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.BLOCKS, 1.5f, 0.5f); // TODO random pitches
+            block.getWorld().playSound(effectsLoc, Sound.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, 1.5f, 1.5f);  // TODO ambient sound?
+            block.getWorld().playSound(effectsLoc, Sound.BLOCK_PORTAL_TRIGGER, SoundCategory.BLOCKS, 1.5f, 0.5f);
 
             // save the block's facing direction if possible...
             if (block.getBlockData() instanceof Directional) {
@@ -501,8 +518,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
             }
             // set block to an end gateway...
             block.setType(Material.END_GATEWAY);
-
-            savePluginData(); // FIXME TEMPORARY
         }
     }
 
@@ -527,9 +542,10 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
 
                 // spawn particle effects and play sfx...
                 Location effectsLoc = loc.clone().add(0.5, 0.5, 0.5);
-                block.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, effectsLoc, 3, 0.1, 0.1, 0.1);
-                block.getWorld().spawnParticle(Particle.DRAGON_BREATH, effectsLoc, 100, 0, 0, 0, 0.1);
-                block.getWorld().playSound(effectsLoc, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, SoundCategory.BLOCKS, 1.5f, 0.5f);
+                block.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, effectsLoc, 5, 0.1, 0.1, 0.05);
+                block.getWorld().spawnParticle(Particle.DRAGON_BREATH, effectsLoc, 100, 0.25, 0.25, 0.25, 0.075);
+                block.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, effectsLoc, 50, 0.1, 0.1, 0.1, 0.025);
+                block.getWorld().playSound(effectsLoc, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, SoundCategory.BLOCKS, 1.5f, 0.25f);
 
                 // set block to an ender chest...
                 block.setType(Material.ENDER_CHEST);
@@ -546,8 +562,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                 // drop the teleportal's gateway prism...
                 ItemStack gatewayPrism = createGatewayPrism(1, subspaceName);
                 block.getWorld().dropItemNaturally(loc, gatewayPrism);
-
-                savePluginData(); // FIXME TEMPORARY
             }
         }
     }
@@ -595,8 +609,18 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                 tpLoc.setYaw(exitYaw - (thisYaw - entity.getLocation().getYaw()));
                 tpLoc.setPitch(entity.getLocation().getPitch());
 
+                // play sound effects...
+                block.getWorld().playSound(loc, Sound.BLOCK_PORTAL_TRIGGER, SoundCategory.BLOCKS, 1.5f, 1.5f); // TODO random pitch
+
                 // teleport the entity...
                 entity.teleport(tpLoc, PlayerTeleportEvent.TeleportCause.END_GATEWAY);
+
+                // disable the end gateway beam...
+                if (block.getState() instanceof EndGateway) {
+                    EndGateway endGateway = (EndGateway) block.getState();
+                    endGateway.setAge(250L);
+                    endGateway.update(true);
+                }
             }
         }
     }

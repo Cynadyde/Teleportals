@@ -22,7 +22,7 @@ public class Utils {
     public static final Random RNG = new Random();
 
     /**
-     * translates chat colors to the message, then formats it.
+     * Translate the message's chat colors, then formats the message.
      */
     @NotNull
     public static String format(@NotNull String message, Object... objects) {
