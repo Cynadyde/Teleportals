@@ -6,7 +6,6 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.block.EndGateway;
 import org.bukkit.block.data.Directional;
 import org.bukkit.command.*;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.ArmorStand;
@@ -35,7 +34,7 @@ import java.util.logging.Level;
 /**
  * Main class of the Teleportals plugin.
  */
-@SuppressWarnings("WeakerAccess")
+@SuppressWarnings({ "WeakerAccess", "unused" })
 public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandExecutor, TabExecutor {
 
     private File subspacesFile = new File(getDataFolder(), "subspaces.yml");
@@ -61,31 +60,12 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
         // create and add the plugin recipes...
         ShapedRecipe gatewayPrismRecipe = new ShapedRecipe(
-                gatewayPrismKey, createGatewayPrism(
-                        getConfig().getInt("recipes.gateway_prism.result.amount"),
-                        getConfig().getString("recipes.gateway_prism.result.display"),
-                        null, null
-        ));
-        List<String> shape = getConfig().getStringList("recipes.gateway_prism.shape");
-        gatewayPrismRecipe.shape(shape.toArray(new String[0]));
+                gatewayPrismKey, createGatewayPrism(1, null, null, null)
+        );
+        gatewayPrismRecipe.shape("OwO", "*#*", "OvO");
 
-        ConfigurationSection section = getConfig().getConfigurationSection("recipes.gateway_prism.key");
-        assert section != null;
-        for (String chr : section.getKeys(false)) {
-            String mat = getConfig().getString("recipes.gateway_prism.key." + chr);
-            if (mat != null) {
-                try {
-                    Material material = Material.valueOf(mat.toUpperCase());
-                    gatewayPrismRecipe.setIngredient(chr.charAt(0), material);
-                }
-                catch (IllegalArgumentException ignored) {
-
-                }
-            }
-        }
-
-        gatewayPrismRecipe.setIngredient('O', Material.valueOf(getConfig().getString("recipes.gateway_prism.key.O").toLowerCase()) Material.ENDER_EYE);
-        gatewayPrismRecipe.setIngredient('*', Material.CONDUIT);
+        gatewayPrismRecipe.setIngredient('O', Material.ENDER_EYE);
+        gatewayPrismRecipe.setIngredient('*', Material.SHULKER_SHELL);
         gatewayPrismRecipe.setIngredient('w', Material.DRAGON_HEAD);
         gatewayPrismRecipe.setIngredient('#', Material.END_CRYSTAL);
         gatewayPrismRecipe.setIngredient('v', Material.BEACON);
@@ -130,13 +110,13 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             }
 
             // reload sub-command given...
-            else if (args[0].equalsIgnoreCase("reload")) {
+            else if (args[0].equalsIgnoreCase("reloadconfig")) {
 
                 if (!sender.hasPermission("teleportals.admin.reload")) {
                     sender.sendMessage(newMsg("no-perms"));
                     return false;
                 }
-                sender.sendMessage(newMsg("reloaded", sender.getName()));
+                sender.sendMessage(newMsg("config-reloaded", sender.getName()));
                 reloadConfig();
                 return true;
             }
@@ -167,7 +147,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             if (args.length == 0) {
 
                 if (sender.hasPermission("teleportals.admin.reload")) {
-                    results.add("reload");
+                    results.add("reloadconfig");
                 }
             }
         }
@@ -271,14 +251,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         return subspacesYaml;
     }
 
-    @Override
-    public void reloadConfig() {
-
-        super.reloadConfig();
-
-
-    }
-
     /**
      * Reload the plugin's subspace data from file.
      */
@@ -319,17 +291,21 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     /**
      * Send plugin info to the given sender.
      */
+    @SuppressWarnings("SpellCheckingInspection")
     public void sendInfo(@NotNull CommandSender sender) {
 
-        // TODO display plugin info
-        //      --=[ name ]=--
-        //      version: -
-        //      authors: -, -, -
-        //      website: -
-        //      description: - -
-        //          - - - - - -
-        //      --------
-        //      commands
+        List<String> lines = new ArrayList<>();
+
+        lines.add(Utils.format("&6---==-&f[&e %s &f]&6-==---", getDescription().getName()));
+        lines.add(Utils.format("&aversion: &b%s", getDescription().getVersion()));
+        lines.add(Utils.format("&aauthors: &b%s", String.join(", ", getDescription().getAuthors())));
+        lines.add(Utils.format("&adescription: &b%s", getDescription().getDescription()));
+        lines.add(Utils.format("&awebsite: &b%s", getDescription().getWebsite()));
+        lines.add(Utils.format("&7------------------------"));
+        lines.add(Utils.format("&a/teleportals &b- display plugin help and information."));
+        lines.add(Utils.format("&a/teleportals reloadconfig &b- reload the plugin's configuration file."));
+
+        sender.sendMessage(lines.toArray(new String[0]));
     }
 
     /**
@@ -459,9 +435,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         // if this block is not already linked to the given subspace...
         if (!subspaceLinks.contains(blockKey)) {
 
-             getLogger().info(String.format("Created Teleportal(%s) at %s(%d, %d, %d)!",
-                     subspaceKey, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
-
             // get the block's facing direction...
             BlockFace facing = (block.getBlockData() instanceof Directional) ?
                     ((Directional) block.getBlockData()).getFacing() : BlockFace.NORTH;
@@ -477,7 +450,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             subspaceLinks.add(blockKey);
             getSubspaces().set(subspaceKey, subspaceLinks);
 
-            // TODO use server commands to do effects
+            getLogger().info(String.format("Created Teleportal(%s) at %s(%d, %d, %d)!",
+                    subspaceKey, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
 
             // spawn particle effects and play sfx...
             Location effectsLoc = loc.clone().add(0.5, 0.5, 0.5);
@@ -498,39 +472,25 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         Location loc = block.getLocation();
         String blockKey = Utils.posToKey(block);
 
-        // TODO should still set end gate to ender chest, remove marker even if not in subspaces yaml.
+        BlockFace facing = null;
+        ItemStack gatewayPrism = null;
 
-        // for each subspace containing this link...
-        for (String subspaceKey : getSubspaces().getKeys(false)) {
+        // get the teleportal's marker...
+        ArmorStand marker = Utils.getMarker(block, teleportalKey.toString());
 
-            List<String> subspaceLinks = getSubspaces().getStringList(subspaceKey);
-            if (subspaceLinks.contains(blockKey)) {
+        if (marker != null) {
+            facing = marker.getFacing();
+            gatewayPrism = marker.getItemInHand();
 
-                 getLogger().info(String.format("Removed teleportal(%s) at %s(%d, %d, %d)!",
-                         subspaceKey, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
+            marker.remove();
+        }
 
-                // set block to an ender chest...
-                block.setType(Material.ENDER_CHEST);
+        // set block to an ender chest...
+        if (block.getType() == Material.END_GATEWAY) {
 
-                BlockFace facing;
-                ItemStack gatewayPrism;
+            block.setType(Material.ENDER_CHEST);
 
-                // get the teleportal's marker...
-                ArmorStand marker = Utils.getMarker(block, teleportalKey.toString());
-
-                if (marker != null) {
-                    facing = marker.getFacing();
-                    gatewayPrism = marker.getItemInHand();
-
-                    marker.remove();
-                }
-                else {
-                    facing = BlockFace.NORTH;
-                    gatewayPrism = createGatewayPrism(1, null, null, null);
-                }
-
-//                // remove the marker...
-//                Utils.removeMarker(block, teleportalKey.toString());
+            if (facing != null) {
 
                 // set the rotation of the ender chest...
                 if (block.getBlockData() instanceof Directional) {
@@ -540,24 +500,32 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
                     block.setBlockData(blockData);
                 }
-
-                // drop the teleportal's gateway prism...
-                block.getWorld().dropItemNaturally(loc, gatewayPrism);
-
-                // unlink the teleportal from that subspace...
-                subspaceLinks.remove(blockKey);
-                getSubspaces().set(subspaceKey, subspaceLinks);
-
-                // TODO use server commands to do effects
-
-                // spawn particle effects and play sfx...
-                Location effectsLoc = loc.clone().add(0.5, 0.5, 0.5);
-                block.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, effectsLoc, 5, 0.1, 0.1, 0.05);
-                block.getWorld().spawnParticle(Particle.DRAGON_BREATH, effectsLoc, 100, 0.25, 0.25, 0.25, 0.075);
-                block.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, effectsLoc, 50, 0.1, 0.1, 0.1, 0.025);
-                block.getWorld().playSound(effectsLoc, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, SoundCategory.BLOCKS, 1.5f, 0.25f);
             }
         }
+
+        if (gatewayPrism != null) {
+
+            // drop the teleportal's gateway prism...
+            block.getWorld().dropItemNaturally(loc, gatewayPrism);
+
+            String subspaceKey = Utils.enchantsToKey(Utils.getEnchants(gatewayPrism));
+            List<String> subspaceLinks = getSubspaces().getStringList(subspaceKey);
+
+            // unlink the teleportal from that subspace...
+            if (subspaceLinks.remove(blockKey)) {
+                getSubspaces().set(subspaceKey, subspaceLinks);
+            }
+
+            getLogger().info(String.format("Removed teleportal(%s) at %s(%d, %d, %d)!",
+                    subspaceKey, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
+        }
+
+        // spawn particle effects and play sfx...
+        Location effectsLoc = loc.clone().add(0.5, 0.5, 0.5);
+        block.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, effectsLoc, 5, 0.1, 0.1, 0.05);
+        block.getWorld().spawnParticle(Particle.DRAGON_BREATH, effectsLoc, 100, 0.25, 0.25, 0.25, 0.075);
+        block.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, effectsLoc, 50, 0.1, 0.1, 0.1, 0.025);
+        block.getWorld().playSound(effectsLoc, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, SoundCategory.BLOCKS, 1.5f, 0.25f);
     }
 
     /**
@@ -578,10 +546,28 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                          subspaceKey, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
 
                 // get the next exit link for this teleportal...
-                int index = (subspaceLinks.indexOf(blockKey) + 1) % subspaceLinks.size();
-                String exitKey = subspaceLinks.get(index);
-                Block exitLink = Utils.keyToPos(exitKey);
+                Block exitLink = null;
+                boolean alteredList = false;
 
+                int index;
+                String exitKey;
+
+                while (!subspaceLinks.isEmpty()) {
+
+                    index = (subspaceLinks.indexOf(blockKey) + 1) % subspaceLinks.size();
+                    exitKey = subspaceLinks.get(index);
+                    exitLink = Utils.keyToPos(exitKey);
+
+                    if (exitLink != null && exitLink.getType() == Material.END_GATEWAY) {
+                        break;
+                    }
+                    else {
+                        alteredList = alteredList || subspaceLinks.remove(exitKey);
+                    }
+                }
+                if (alteredList) {
+                    getSubspaces().set(subspaceKey, subspaceLinks);
+                }
                 if (exitLink == null) {
                     return;
                 }
@@ -593,17 +579,18 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                 BlockFace exitDir = getTeleportalFacing(exitLink);
                 int dirOffset = (face.ordinal() - thisDir.ordinal());
 
-                tpLoc.add(BlockFace.values()[(exitDir.ordinal() + dirOffset) % 4].getDirection());
+                tpLoc.add(Utils.FACES[Math.floorMod(exitDir.ordinal() + dirOffset, Utils.FACES.length)].getDirection());
 
                 // choose the appropriate yaw and pitch to emerge with...
-                float thisYaw = (thisDir.ordinal() * 90) + 180;
-                float exitYaw = exitDir.ordinal() * 90;
+                float thisYaw = Utils.blockFaceToYaw(thisDir) + 180;
+                float exitYaw = Utils.blockFaceToYaw(exitDir);
 
                 tpLoc.setYaw(exitYaw - (thisYaw - entity.getLocation().getYaw()));
                 tpLoc.setPitch(entity.getLocation().getPitch());
 
                 // play sound effects...
-                block.getWorld().playSound(loc, Sound.BLOCK_PORTAL_TRIGGER, SoundCategory.BLOCKS, 1.5f, 1.5f); // TO DO random pitch
+                float randomPitch = 0.75f + (Utils.RNG.nextFloat() % 0.75f);
+                block.getWorld().playSound(loc, Sound.BLOCK_PORTAL_TRIGGER, SoundCategory.BLOCKS, 0.25f, randomPitch);
 
                 // teleport the entity...
                 entity.teleport(tpLoc, PlayerTeleportEvent.TeleportCause.END_GATEWAY);

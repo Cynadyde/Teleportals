@@ -12,39 +12,3 @@ messages:
   unknown-cmd: "&cUnknown command: \"%s\""
   invalid-arg: "&cInvalid argument given: \"%s\""
   config-reloaded: "&6The config was reloaded by &e%s"
-
-# The item recipes defined by the plugin.
-recipes:
-  gateway_prism:
-    shape:
-      - "OwO"
-      - "*#*"
-      - "OvO"
-    key:
-      'O': ender_eye
-      '*': shulker_shell
-      'w': dragon_head
-      '#': end_crystal
-      'v': beacon
-    result:
-      material: golden_sword
-      display: "&bGateway Prism"
-      amount: 1
-
-# The structures defined by the plugin.
-structures:
-  teleportal:
-    frame: obsidian
-
-# The effect commands executed by the plugin.
-effects:
-  activate:
-    - "sound cmd"
-    - "particle cmd"
-  deactivate:
-    - "sound cmd"
-    - "particle cmd"
-  use:
-    - "sound cmd"
-    - "particle cmd"
-    - "effect cmd"

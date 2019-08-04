@@ -19,10 +19,13 @@ import java.util.*;
 /**
  * Utilities for the Teleportals plugin.
  */
-@SuppressWarnings("WeakerAccess")
+@SuppressWarnings({ "WeakerAccess", "unused" })
 public class Utils {
 
-    private static BlockFace[] directions = {BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST};
+    /**
+     * Block faces in the four cardinal directions.
+     */
+    public static final BlockFace[] FACES = {BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST};
 
     /**
      * Java's random number generator.
@@ -143,11 +146,11 @@ public class Utils {
     }
 
     public static @NotNull BlockFace yawToBlockFace(int yaw) {
-        return directions[Math.round(yaw / 90f) & 0x3];
+        return FACES[Math.round(yaw / 90f) & 0x3];
     }
 
     public static float blockFaceToYaw(BlockFace facing) {
-        return ((facing.ordinal() * 90f) % 360) - 180;
+        return (facing.ordinal() * 90f);
     }
 
     /**
@@ -165,8 +168,6 @@ public class Utils {
             if (entity.getType() == EntityType.ARMOR_STAND) {
                 ArmorStand armorStand = (ArmorStand) entity;
                 String name = armorStand.getCustomName();
-
-                Bukkit.getLogger().info("[Teleportals] ARMOR STAND WAS FOUND: " + ((name == null) ? "null" : name));
 
                 if (name != null) {
                     if (ChatColor.stripColor(name).equalsIgnoreCase(key)) {
@@ -186,7 +187,7 @@ public class Utils {
 
         Location loc = block.getLocation();
         loc.add(0.5, 0.0, 0.5);
-        loc.setYaw(blockFaceToYaw(facing));
+        loc.setYaw(blockFaceToYaw(facing) + 180);
 
         ArmorStand marker = (ArmorStand) block.getWorld().spawnEntity(loc, EntityType.ARMOR_STAND);
 
