@@ -6,6 +6,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.block.EndGateway;
 import org.bukkit.block.data.Directional;
 import org.bukkit.command.*;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.ArmorStand;
@@ -44,38 +45,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     private NamespacedKey gatewayPrismKey = new NamespacedKey(this, "gateway_prism");
 
     /**
-     * Get the plugin's subspace data from file.
-     */
-    public YamlConfiguration getSubspaces() {
-
-        if (subspacesYaml == null) {
-            subspacesYaml = YamlConfiguration.loadConfiguration(subspacesFile);
-        }
-        return subspacesYaml;
-    }
-
-    /**
-     * Reload the plugin's subspace data from file.
-     */
-    public void reloadSubspaces() {
-
-        subspacesYaml = YamlConfiguration.loadConfiguration(subspacesFile);
-    }
-
-    /**
-     * Save the plugin's subspace data to file.
-     */
-    public void saveSubspaces() {
-
-        try {
-            getSubspaces().save(subspacesFile);
-        }
-        catch (IOException ex) {
-            getLogger().log(Level.SEVERE, "Could not save data to " + subspacesFile, ex);
-        }
-    }
-
-    /**
      * The plugin is enabled.
      */
     @Override
@@ -92,10 +61,30 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
         // create and add the plugin recipes...
         ShapedRecipe gatewayPrismRecipe = new ShapedRecipe(
-                gatewayPrismKey, createGatewayPrism(1, null, null, null)
-        );
-        gatewayPrismRecipe.shape("OwO", "*#*", "OvO");
-        gatewayPrismRecipe.setIngredient('O', Material.ENDER_EYE);
+                gatewayPrismKey, createGatewayPrism(
+                        getConfig().getInt("recipes.gateway_prism.result.amount"),
+                        getConfig().getString("recipes.gateway_prism.result.display"),
+                        null, null
+        ));
+        List<String> shape = getConfig().getStringList("recipes.gateway_prism.shape");
+        gatewayPrismRecipe.shape(shape.toArray(new String[0]));
+
+        ConfigurationSection section = getConfig().getConfigurationSection("recipes.gateway_prism.key");
+        assert section != null;
+        for (String chr : section.getKeys(false)) {
+            String mat = getConfig().getString("recipes.gateway_prism.key." + chr);
+            if (mat != null) {
+                try {
+                    Material material = Material.valueOf(mat.toUpperCase());
+                    gatewayPrismRecipe.setIngredient(chr.charAt(0), material);
+                }
+                catch (IllegalArgumentException ignored) {
+
+                }
+            }
+        }
+
+        gatewayPrismRecipe.setIngredient('O', Material.valueOf(getConfig().getString("recipes.gateway_prism.key.O").toLowerCase()) Material.ENDER_EYE);
         gatewayPrismRecipe.setIngredient('*', Material.CONDUIT);
         gatewayPrismRecipe.setIngredient('w', Material.DRAGON_HEAD);
         gatewayPrismRecipe.setIngredient('#', Material.END_CRYSTAL);
@@ -130,6 +119,35 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
                              @NotNull String alias, @NotNull String[] args) {
 
+        // the main plugin command...
+        if (alias.equalsIgnoreCase("teleportals")) {
+
+            // no arguments given...
+            if (args.length == 0) {
+
+                sendInfo(sender);
+                return true;
+            }
+
+            // reload sub-command given...
+            else if (args[0].equalsIgnoreCase("reload")) {
+
+                if (!sender.hasPermission("teleportals.admin.reload")) {
+                    sender.sendMessage(newMsg("no-perms"));
+                    return false;
+                }
+                sender.sendMessage(newMsg("reloaded", sender.getName()));
+                reloadConfig();
+                return true;
+            }
+
+            // unknown sub-command given...
+            else {
+                String cmd = "/" + alias + String.join(" ", args);
+                sender.sendMessage(newMsg("unknown-cmd", cmd));
+                return false;
+            }
+        }
         return false;
     }
 
@@ -140,7 +158,20 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
                                                 @NotNull String alias, @NotNull String[] args) {
 
-        return null;
+        List<String> results = new ArrayList<>();
+
+        // the main plugin command...
+        if (alias.equalsIgnoreCase("teleportals")) {
+
+            // no sub-commands specified...
+            if (args.length == 0) {
+
+                if (sender.hasPermission("teleportals.admin.reload")) {
+                    results.add("reload");
+                }
+            }
+        }
+        return results;
     }
 
     /**
@@ -227,6 +258,78 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                 }
             }
         }
+    }
+
+    /**
+     * Get the plugin's subspace data from file.
+     */
+    public YamlConfiguration getSubspaces() {
+
+        if (subspacesYaml == null) {
+            subspacesYaml = YamlConfiguration.loadConfiguration(subspacesFile);
+        }
+        return subspacesYaml;
+    }
+
+    @Override
+    public void reloadConfig() {
+
+        super.reloadConfig();
+
+
+    }
+
+    /**
+     * Reload the plugin's subspace data from file.
+     */
+    public void reloadSubspaces() {
+
+        subspacesYaml = YamlConfiguration.loadConfiguration(subspacesFile);
+    }
+
+    /**
+     * Save the plugin's subspace data to file.
+     */
+    public void saveSubspaces() {
+
+        try {
+            getSubspaces().save(subspacesFile);
+        }
+        catch (IOException ex) {
+            getLogger().log(Level.SEVERE, "Could not save data to " + subspacesFile, ex);
+        }
+    }
+
+    /**
+     * Get the plugin's chat tag.
+     */
+    public @NotNull String getTag() {
+
+        return Objects.requireNonNull(getConfig().getString("messages.tag"));
+    }
+
+    /**
+     * Create a new plugin message using the given key and formatter objects.
+     */
+    public @NotNull String newMsg(@NotNull String key, Object...objs) {
+
+        return Utils.format(getTag() + Objects.requireNonNull(getConfig().getString("messages." + key)), objs);
+    }
+
+    /**
+     * Send plugin info to the given sender.
+     */
+    public void sendInfo(@NotNull CommandSender sender) {
+
+        // TODO display plugin info
+        //      --=[ name ]=--
+        //      version: -
+        //      authors: -, -, -
+        //      website: -
+        //      description: - -
+        //          - - - - - -
+        //      --------
+        //      commands
     }
 
     /**
@@ -374,6 +477,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             subspaceLinks.add(blockKey);
             getSubspaces().set(subspaceKey, subspaceLinks);
 
+            // TODO use server commands to do effects
+
             // spawn particle effects and play sfx...
             Location effectsLoc = loc.clone().add(0.5, 0.5, 0.5);
             block.getWorld().spawnParticle(Particle.END_ROD, effectsLoc, 200, 0.1, 0.1, 0.1, 0.10);
@@ -392,6 +497,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
         Location loc = block.getLocation();
         String blockKey = Utils.posToKey(block);
+
+        // TODO should still set end gate to ender chest, remove marker even if not in subspaces yaml.
 
         // for each subspace containing this link...
         for (String subspaceKey : getSubspaces().getKeys(false)) {
@@ -440,6 +547,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                 // unlink the teleportal from that subspace...
                 subspaceLinks.remove(blockKey);
                 getSubspaces().set(subspaceKey, subspaceLinks);
+
+                // TODO use server commands to do effects
 
                 // spawn particle effects and play sfx...
                 Location effectsLoc = loc.clone().add(0.5, 0.5, 0.5);
