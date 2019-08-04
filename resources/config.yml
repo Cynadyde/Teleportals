@@ -1,0 +1,71 @@
+#
+#
+#
+#
+
+# If this is set to true, the name of the gateway prism
+# is used in the subspace key as well as the enchantments.
+# Such would make it significantly harder to portal-hack.
+include-name: false
+
+# The message strings used by the game. Includes color codes
+# and formatters. If you decide to edit these, make sure the
+# amount and type of formatters are unchanged.
+messages:
+  tag: "&f&l[&bTele&3Portals&f&l]&r "
+  no-perms: "&cInsufficient permissions"
+  unknown-cmd: "&cUnknown command: \"%s\""
+  invalid-arg: "&cInvalid argument given: \"%s\""
+  reloaded: "&6The config, data was reloaded by &e%s"
+
+# The items defined by the plugin.
+items:
+  gateway_prism:
+    key: "teleportals:gateway_prism"
+
+# The item recipes defined by the plugin.
+recipes:
+  gateway_prism:
+    shape:
+      - "OwO"
+      - "*#*"
+      - "OvO"
+    key:
+      'O': {material: ender_eye}
+      '*': {material: conduit}
+      'w': {material: dragon_head}
+      '#': {material: end_crystal}
+      'v': {material: beacon}
+    result:
+      material: end_crystal
+      display: "&bGateway Prism"
+      amount: 2
+
+# The structures defined by the plugin.
+structures:
+  teleportal-off:
+    anchor: [0, 1, 0]
+    shape:
+      - ["O", "E", "O"]
+    key:
+      'O': {material: obsidian}
+      'E': {material: ender_chest}
+  teleportal-on:
+    anchor: [0, 1, 0]
+    shape:
+      - ["O", "G", "O"]
+    key:
+      'O': {material: obsidian}
+      'G': {material: end_gateway}
+
+# The effect commands executed by the plugin.
+effects:
+  activate:
+    - "sound cmd"
+    - "effect cmd"
+  deactivate:
+    - "sound cmd"
+    - "effect cmd"
+  use:
+    - "sound cmd"
+    - "effect cmd"

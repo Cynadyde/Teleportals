@@ -1,11 +1,12 @@
 main: me.cynadyde.teleportals.TeleportalsPlugin
 name: Teleportals
-version: "1.14.1-0"
+version: "1.14.4-0"
 api-version: "1.14"
-description: Build your own End Gateway portals in survival mode!
+description: >
+  Build End Gateway portals in survival mode.
 authors:
   - Cynadyde (May 2019)
-website: "null"
+website: N/A
 commands:
   teleportals:
     description: The Teleportals Plugin command.
@@ -19,17 +20,17 @@ permissions:
     default: op
     children:
       teleportals.admin.reload: true
-  teleportals.admin.reload:
-    default: false
   teleportals.player.*:
     default: true
     children:
-      teleportals.craft: true
-      teleportals.activate: true
-      teleportals.use: true
-  teleportals.craft:
+      teleportals.player.craft: true
+      teleportals.player.activate: true
+      teleportals.player.use: true
+  teleportals.admin.reload:
     default: false
-  teleportals.activate:
+  teleportals.player.craft:
     default: false
-  teleportals.use:
+  teleportals.player.activate:
+    default: false
+  teleportals.player.use:
     default: false
