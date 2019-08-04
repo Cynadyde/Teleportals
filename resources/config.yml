@@ -12,3 +12,7 @@ messages:
   unknown-cmd: "&cUnknown command: \"%s\""
   invalid-arg: "&cInvalid argument given: \"%s\""
   config-reloaded: "&6The config was reloaded by &e%s"
+
+# The display name of the gateway prism.
+# Requires a reload for changes to take effect.
+gateway-prism-display: "&bGateway Prism"

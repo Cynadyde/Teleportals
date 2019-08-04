@@ -1,6 +1,6 @@
 main: me.cynadyde.teleportals.TeleportalsPlugin
 name: Teleportals
-version: "1.14.4-0"
+version: "1.14.4-1"
 api-version: "1.14"
 description: >
   Build End Gateway portals in survival mode.
@@ -9,28 +9,43 @@ authors:
 website: N/A
 commands:
   teleportals:
-    description: The Teleportals Plugin command.
+    description: The Teleportals plugin command.
 permissions:
   teleportals.*:
+    description: "Grants all abilities."
     default: false
     children:
       teleportals.admin.*: true
       teleportals.player.*: true
   teleportals.admin.*:
+    description: "Grants all admin abilities."
     default: op
     children:
       teleportals.admin.reload: true
   teleportals.player.*:
+    description: "Grants all player abilities."
     default: true
     children:
       teleportals.player.craft: true
+      teleportals.player.power: true
       teleportals.player.activate: true
+      teleportals.player.deactivate: true
       teleportals.player.use: true
   teleportals.admin.reload:
+    description: "Grants ability to reload the config file."
     default: false
   teleportals.player.craft:
+    description: "Grants ability to craft a gateway prism."
+    default: false
+  teleportals.player.power:
+    description: "Grants ability to power up a gateway prism."
     default: false
   teleportals.player.activate:
+    description: "Grants ability to activate a teleportal."
+    default: false
+  teleportals.player.deactivate:
+    description: "Grants ability to deactivate a teleportal."
     default: false
   teleportals.player.use:
+    description: "Grants ability to use a teleportal."
     default: false
