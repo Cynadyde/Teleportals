@@ -44,9 +44,10 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         // create and add the plugin recipes...
         ShapedRecipe recipe;
         {
-            ItemStack item = new ItemStack(Material.GOLDEN_SWORD, 1);
+            ItemStack item = new ItemStack(Material.GOLDEN_SWORD, 4);
 
-            Utils.setDisplayName(item, getConfig().getString("gateway-prism-display"));
+            String name = getConfig().getString("gateway-prism-display");
+            Utils.setDisplayName(item, (name == null) ? null : Utils.format(name));
             Utils.addLoreTag(item, Utils.format("&8&o") + gatewayPrismKey.toString());
 
             recipe = new ShapedRecipe(gatewayPrismKey, item);
@@ -58,7 +59,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             recipe.setIngredient('w', Material.DRAGON_HEAD);
             recipe.setIngredient('#', Material.END_CRYSTAL);
             recipe.setIngredient('v', Material.BEACON);
-
         }
         getServer().addRecipe(recipe);
 
@@ -155,34 +155,48 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
             // if the player was using a gateway prism...
             ItemStack usedItem = event.getPlayer().getInventory().getItemInMainHand();
+
+            getLogger().info(Utils.format("&9Right click interaction caught with item: %s", usedItem));
+
             if (Utils.hasLoreTag(usedItem, gatewayPrismKey.toString())) {
+
+                getLogger().info(Utils.format(" > Item has the lore tag '%s'", gatewayPrismKey.toString()));
 
                 // if the clicked block was an ender chest...
                 Block block = event.getClickedBlock();
-                if (block != null && block.getType() == Material.ENDER_CHEST) {
+                if (block != null && (block.getType() == Material.ENDER_CHEST
+                        || block.getType() == Material.END_GATEWAY)) {
+
+                    getLogger().info(Utils.format(" > An ender chest was clicked."));
 
                     // if the clicked block was part of a teleportal structure...
-                    Teleportal teleportal = Teleportal.getFromStruct(block, this);
+                    Teleportal teleportal = Teleportal.getFromStruct(this, block);
                     if (teleportal != null) {
+
+                        getLogger().info(Utils.format(" > A teleportal was found!"));
 
                         // cancel the interaction event...
                         event.setCancelled(true);
 
                         // if the gateway prism is unlinked...
-                        if (Utils.hasLoreData(usedItem, "link")) {
+                        if (!Utils.hasLoreData(usedItem, "link")) {
 
                             teleportal.linkGatewayPrism(usedItem);
+
+                            getLogger().info(Utils.format(" > The gateway prism was linked to this teleportal!"));
                         }
                         // else...
                         else {
 
                             // activate the teleportal...
-                            teleportal.activate();
+                            teleportal.activate(usedItem);
 
                             // consume the gateway prism...
                             if (event.getPlayer().getGameMode() != GameMode.CREATIVE) {
                                 usedItem.setAmount(usedItem.getAmount() - 1);
                             }
+
+                            getLogger().info(Utils.format(" > The gateway prism was used to activate the teleportal!"));
                         }
                     }
                 }
@@ -197,7 +211,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     public void onBlockBreak(@NotNull BlockBreakEvent event) {
 
         // if a teleportal or teleportal's frame was broken...
-        Teleportal teleportal = Teleportal.getFromStruct(event.getBlock(), this);
+        Teleportal teleportal = Teleportal.getFromStruct(this, event.getBlock());
 
         if (teleportal != null) {
 
@@ -228,7 +242,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                         && event.getHitBlockFace() != null) {
 
                     // if the end-gateway was a teleportal...
-                    Teleportal teleportal = Teleportal.getFromStruct(block, this);
+                    Teleportal teleportal = Teleportal.getFromStruct(this, block);
                     if (teleportal != null) {
 
                         // teleport the entity...

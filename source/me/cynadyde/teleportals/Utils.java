@@ -44,78 +44,6 @@ public class Utils {
         }
     }
 
-//    /**
-//     * Get the enchantments of an item stack.
-//     */
-//    public static @NotNull Map<Enchantment, Integer> getEnchants(@NotNull ItemStack items) {
-//
-//        Map<Enchantment, Integer> results = new HashMap<>();
-//
-//        ItemMeta itemMeta = items.getItemMeta();
-//        if (itemMeta == null) {
-//            return results;
-//        }
-//        return itemMeta.getEnchants();
-//    }
-//
-//    /**
-//     * Set the enchantments of an item stack.
-//     */
-//    public static void setEnchants(@NotNull ItemStack items, @NotNull Map<Enchantment, Integer> enchants) {
-//
-//        ItemMeta itemMeta = items.getItemMeta();
-//        if (itemMeta == null) {
-//            return;
-//        }
-//        for (Enchantment ench : enchants.keySet()) {
-//
-//            itemMeta.addEnchant(ench, enchants.get(ench), true);
-//        }
-//        items.setItemMeta(itemMeta);
-//    }
-//
-//    /**
-//     * Create a key representing the given enchantments.
-//     */
-//    public static @NotNull String enchantsToKey(@NotNull Map<Enchantment, Integer> enchants) {
-//
-//        List<String> elements = new ArrayList<>();
-//        for (Enchantment enchant : enchants.keySet()) {
-//
-//            String enchantId = enchant.getKey().getKey().toLowerCase();
-//            String enchantLvl = String.valueOf(enchants.get(enchant));
-//            elements.add(enchantId + "=" + enchantLvl);
-//        }
-//        Collections.sort(elements);
-//        return String.join(",", elements);
-//    }
-//
-//    /**
-//     * Get enchantments represented by the given key.
-//     */
-//    public static @Nullable Map<Enchantment, Integer> keyToEnchants(@NotNull String key) {
-//
-//        try {
-//            Map<Enchantment, Integer> results = new HashMap<>();
-//
-//            for (String token : key.split(",")) {
-//
-//                String[] subTokens = token.split("=");
-//
-//                Enchantment ench = Enchantment.getByKey(NamespacedKey.minecraft(subTokens[0]));
-//                assert ench != null;
-//                Integer lvl = Integer.valueOf(subTokens[1]);
-//
-//                results.put(ench, lvl);
-//            }
-//            return results;
-//        }
-//        catch (Exception ignored) {
-//
-//        }
-//        return null;
-//    }
-
     /**
      * Set the display name of a given item stack.
      */
@@ -188,6 +116,7 @@ public class Utils {
     /**
      * Check if the given item has the specified data key in its lore.
      */
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public static boolean hasLoreData(@Nullable ItemStack item, @NotNull String key) {
 
         String rawKey = ChatColor.stripColor(key).trim().toLowerCase();
@@ -214,10 +143,41 @@ public class Utils {
         return false;
     }
 
+    public static @NotNull String getLoreData(@Nullable ItemStack item, @NotNull String key) {
+
+        String rawKey = ChatColor.stripColor(key).trim().toLowerCase();
+
+        if (item == null) {
+            return "";
+        }
+        ItemMeta itemMeta = item.getItemMeta();
+        if (itemMeta == null) {
+            return "";
+        }
+
+        List<String> lore = itemMeta.getLore();
+        if (lore == null || lore.isEmpty()) {
+            return "";
+        }
+        for (String line : lore) {
+
+            String rawLine = ChatColor.stripColor(line).trim().toLowerCase();
+            if (rawLine.startsWith(rawKey)) {
+
+                return line.substring(line.indexOf(": ") + 2);
+            }
+        }
+        return "";
+    }
+
     /**
      * Set the specified key in the given item's lore. If the value is null, the key will be removed.
      */
     public static void setLoreData(@Nullable ItemStack item, @NotNull String key, @Nullable String value) {
+
+        if (key.contains(": ")) {
+            throw new IllegalArgumentException("lore key cannot contain ': '");
+        }
 
         String rawKey = ChatColor.stripColor(key).trim().toLowerCase();
 
@@ -257,6 +217,8 @@ public class Utils {
                 lore.set(index, key + ": " + value);
             }
         }
+        itemMeta.setLore(lore);
+        item.setItemMeta(itemMeta);
     }
 
     /**
@@ -292,25 +254,23 @@ public class Utils {
         return null;
     }
 
-//    public static @NotNull BlockFace yawToBlockFace(int yaw) {
-//        return FACES[Math.round(yaw / 90f) & 0x3];
-//    }
-
     /**
      * Get the yaw represented by a given block face.
      */
     public static float blockFaceToYaw(BlockFace facing) {
-        return (facing.ordinal() * 90f);
+        return (facing.ordinal() * 90f) + 180;
     }
 
     /**
      * Create an armor stand marker with the given key at the specified block.
      */
-    public static @NotNull ArmorStand createMarker(@NotNull Block block, @NotNull BlockFace facing, @NotNull String key) {
+    @SuppressWarnings("UnusedReturnValue")
+    public static @NotNull ArmorStand createMarker(@NotNull Block block, @NotNull BlockFace facing,
+                                                   @NotNull String key, @Nullable ItemStack heldItem) {
 
         Location loc = block.getLocation();
         loc.add(0.5, 0.0, 0.5);
-        loc.setYaw(blockFaceToYaw(facing) + 180); // TODO add 180 inside of blockFaceToYaw function, then fix usages
+        loc.setYaw(blockFaceToYaw(facing));
 
         ArmorStand marker = (ArmorStand) block.getWorld().spawnEntity(loc, EntityType.ARMOR_STAND);
 
@@ -323,7 +283,9 @@ public class Utils {
 
         marker.setSmall(true);
         marker.setArms(true);
+
         marker.setRightArmPose(new EulerAngle(-Math.PI/2, 0, 0));
+        marker.setItemInHand(heldItem);
 
         return marker;
     }

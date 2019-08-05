@@ -27,7 +27,7 @@ permissions:
     default: true
     children:
       teleportals.player.craft: true
-      teleportals.player.power: true
+      teleportals.player.link: true
       teleportals.player.activate: true
       teleportals.player.deactivate: true
       teleportals.player.use: true
@@ -37,8 +37,8 @@ permissions:
   teleportals.player.craft:
     description: "Grants ability to craft a gateway prism."
     default: false
-  teleportals.player.power:
-    description: "Grants ability to power up a gateway prism."
+  teleportals.player.link:
+    description: "Grants ability to link up a gateway prism."
     default: false
   teleportals.player.activate:
     description: "Grants ability to activate a teleportal."

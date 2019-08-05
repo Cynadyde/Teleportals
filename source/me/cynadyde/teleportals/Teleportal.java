@@ -13,9 +13,9 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
-import java.util.Objects;
-
+/**
+ * Represents a teleportal structure in the world.
+ */
 @SuppressWarnings("WeakerAccess")
 public class Teleportal {
 
@@ -25,12 +25,7 @@ public class Teleportal {
     /**
      * Get a teleportal if the given block is part of a teleportal structure.
      */
-    public static @Nullable Teleportal getFromStruct(@Nullable Block block, @NotNull TeleportalsPlugin plgn) {
-
-//        TeleportalsPlugin plgn = (TeleportalsPlugin) Objects.requireNonNull(
-//                Bukkit.getPluginManager().getPlugin("Teleportals"),
-//                "Could not get 'Teleportals' from Bukkit's plugin manager."
-//        );
+    public static @Nullable Teleportal getFromStruct(@NotNull TeleportalsPlugin plugin, @Nullable Block block) {
 
         if (block == null) {
             return null;
@@ -38,7 +33,7 @@ public class Teleportal {
 
         for (BlockFace rel : new BlockFace[] {BlockFace.SELF, BlockFace.UP, BlockFace.DOWN}) {
 
-            Teleportal teleportal = new Teleportal(plgn, block.getRelative(rel));
+            Teleportal teleportal = new Teleportal(plugin, block.getRelative(rel));
 
             if (teleportal.isStructOk()) {
                 return teleportal;
@@ -121,115 +116,102 @@ public class Teleportal {
     public void linkGatewayPrism(ItemStack gatewayPrism) {
 
         if (Utils.hasLoreTag(gatewayPrism, plugin.gatewayPrismKey.toString())) {
+
+            plugin.getLogger().info(Utils.format("&9Linking the gateway prism with '%s'", Utils.blockToKey(anchor)));
+
             Utils.setLoreData(gatewayPrism, Utils.format("&6link"), Utils.blockToKey(anchor));
         } // TODO add &k to link key
     }
 
     /**
      * Turn on the teleportal.
+     * Only works if it is currently off.
+     * The gateway prism must be linked to another teleportal.
      */
-    public void activate() {
+    public void activate(ItemStack gatewayPrism) {
 
-        Location loc = block.getLocation();
-        String blockKey = Utils.blockToKey(block);
-        String subspaceKey = Utils.enchantsToKey(Utils.getEnchants(gatewayPrism));
-
-        List<String> subspaceLinks = getSubspaces().getStringList(subspaceKey);
-
-        // if this block is not already linked to the given subspace...
-        if (!subspaceLinks.contains(blockKey)) {
-
-            // get the block's facing direction...
-            BlockFace facing = (block.getBlockData() instanceof Directional) ?
-                    ((Directional) block.getBlockData()).getFacing() : BlockFace.NORTH;
-
-            // create a marker for the teleportal...
-            ArmorStand marker = Utils.createMarker(block, facing, teleportalKey.toString());
-            marker.setItemInHand(gatewayPrism);
-
-            // set block to an end gateway...
-            block.setType(Material.END_GATEWAY);
-
-            // link the teleportal to that subspace...
-            subspaceLinks.add(blockKey);
-            getSubspaces().set(subspaceKey, subspaceLinks);
-
-            getLogger().info(String.format("Created Teleportal(%s) at %s(%d, %d, %d)!",
-                    subspaceKey, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
-
-            // spawn particle effects and play sfx...
-            Location effectsLoc = loc.clone().add(0.5, 0.5, 0.5);
-            block.getWorld().spawnParticle(Particle.END_ROD, effectsLoc, 200, 0.1, 0.1, 0.1, 0.10);
-            block.getWorld().spawnParticle(Particle.DRAGON_BREATH, effectsLoc, 100, 0.25, 0.25, 0.25, 0.075);
-            block.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, effectsLoc, 50, 0.1, 0.1, 0.1, 0.025);
-            block.getWorld().playSound(effectsLoc, Sound.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.BLOCKS, 1.5f, 0.5f); // TO DO random pitches
-            block.getWorld().playSound(effectsLoc, Sound.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, 1.5f, 1.5f);  // TO DO ambient sound?
-            block.getWorld().playSound(effectsLoc, Sound.BLOCK_PORTAL_TRIGGER, SoundCategory.BLOCKS, 1.5f, 0.5f);
+        // make sure the given item is a linked gateway prism...
+        if (!Utils.hasLoreTag(gatewayPrism, plugin.gatewayPrismKey.toString())) {
+            return;
         }
+        if (!Utils.hasLoreData(gatewayPrism, "link")) {
+            return;
+        }
+
+        // make this the gateway prism is linked to a different teleportal...
+        if (Utils.getLoreData(gatewayPrism, "link").equalsIgnoreCase(Utils.blockToKey(anchor))) {
+            return;
+        }
+
+        // make sure this teleportal isn't already activated...
+        if (anchor.getType() == Material.END_GATEWAY) {
+            return;
+        }
+        if (Utils.getMarker(anchor, plugin.teleportalKey.toString()) != null) {
+            return;
+        }
+
+        // create a new marker for the teleportal...
+        Utils.createMarker(anchor, getFacing(), plugin.teleportalKey.toString(), gatewayPrism);
+
+        // set the anchor block to an end gateway...
+        anchor.setType(Material.END_GATEWAY);
+
+        // spawn particle effects and play sfx...
+        Location loc = anchor.getLocation().add(0.5, 0.5, 0.5);
+
+        anchor.getWorld().spawnParticle(Particle.END_ROD, loc, 200, 0.1, 0.1, 0.1, 0.10);
+        anchor.getWorld().spawnParticle(Particle.DRAGON_BREATH, loc, 100, 0.25, 0.25, 0.25, 0.075);
+        anchor.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, loc, 50, 0.1, 0.1, 0.1, 0.025);
+        anchor.getWorld().playSound(loc, Sound.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.BLOCKS, 1.5f, 0.5f);
+        anchor.getWorld().playSound(loc, Sound.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, 1.5f, 1.5f);
+        anchor.getWorld().playSound(loc, Sound.BLOCK_PORTAL_TRIGGER, SoundCategory.BLOCKS, 1.5f, 0.5f);
+
+        plugin.getLogger().info(String.format("Created Teleportal(%s) at %s(%d, %d, %d)!",
+                Utils.getLoreData(gatewayPrism, "link"), anchor.getWorld().getName(),
+                anchor.getX(), anchor.getY(), anchor.getZ()
+        ));
     }
 
     /**
      * Turn off the teleportal.
+     * Works weather it is on, off, or in a broken state.
      */
     public void deactivate() {
 
-        Location loc = block.getLocation();
-        String blockKey = Utils.blockToKey(block);
+        Location loc = anchor.getLocation().add(0.5, 0.5, 0.5);
+        BlockFace facing = getFacing();
+        ItemStack gatewayPrism = getGatewayPrism();
 
-        BlockFace facing = null;
-        ItemStack gatewayPrism = null;
-
-        // get the teleportal's marker...
-        ArmorStand marker = Utils.getMarker(block, teleportalKey.toString());
-
-        if (marker != null) {
-            facing = marker.getFacing();
-            gatewayPrism = marker.getItemInHand();
-
-            marker.remove();
-        }
+        // remove the teleportal's marker...
+        Utils.removeMarker(anchor, plugin.teleportalKey.toString());
 
         // set block to an ender chest...
-        if (block.getType() == Material.END_GATEWAY) {
+        anchor.setType(Material.ENDER_CHEST);
 
-            block.setType(Material.ENDER_CHEST);
+        // set the rotation of the ender chest...
+        if (anchor.getBlockData() instanceof Directional) {
 
-            if (facing != null) {
-
-                // set the rotation of the ender chest...
-                if (block.getBlockData() instanceof Directional) {
-
-                    Directional blockData = (Directional) block.getBlockData();
-                    blockData.setFacing(facing);
-
-                    block.setBlockData(blockData);
-                }
-            }
+            Directional blockData = (Directional) anchor.getBlockData();
+            blockData.setFacing(facing);
+            anchor.setBlockData(blockData);
         }
 
+        // drop the teleportal's gateway prism...
         if (gatewayPrism != null) {
-
-            // drop the teleportal's gateway prism...
-            block.getWorld().dropItemNaturally(loc, gatewayPrism);
-
-            String subspaceKey = Utils.enchantsToKey(Utils.getEnchants(gatewayPrism));
-            List<String> subspaceLinks = getSubspaces().getStringList(subspaceKey);
-
-            // unlink the teleportal from that subspace...
-            if (subspaceLinks.remove(blockKey)) {
-                getSubspaces().set(subspaceKey, subspaceLinks);
-            }
-
-            getLogger().info(String.format("Removed teleportal(%s) at %s(%d, %d, %d)!",
-                    subspaceKey, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
+            anchor.getWorld().dropItemNaturally(loc, gatewayPrism);
         }
 
         // spawn particle effects and play sfx...
-        Location effectsLoc = loc.clone().add(0.5, 0.5, 0.5);
-        block.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, effectsLoc, 5, 0.1, 0.1, 0.05);
-        block.getWorld().spawnParticle(Particle.DRAGON_BREATH, effectsLoc, 100, 0.25, 0.25, 0.25, 0.075);
-        block.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, effectsLoc, 50, 0.1, 0.1, 0.1, 0.025);
-        block.getWorld().playSound(effectsLoc, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, SoundCategory.BLOCKS, 1.5f, 0.25f);
+        anchor.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, loc, 5, 0.1, 0.1, 0.05);
+        anchor.getWorld().spawnParticle(Particle.DRAGON_BREATH, loc, 100, 0.25, 0.25, 0.25, 0.075);
+        anchor.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, loc, 50, 0.1, 0.1, 0.1, 0.025);
+        anchor.getWorld().playSound(loc, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, SoundCategory.BLOCKS, 1.5f, 0.25f);
+
+        plugin.getLogger().info(String.format("Removed teleportal(%s) at %s(%d, %d, %d)!",
+                Utils.getLoreData(gatewayPrism, "link"), anchor.getWorld().getName(),
+                anchor.getX(), anchor.getY(), anchor.getZ()
+        ));
     }
 
     /**
@@ -237,75 +219,48 @@ public class Teleportal {
      */
     public void teleport(Entity entity, BlockFace face) {
 
-        Location loc = block.getLocation();
-        String blockKey = Utils.blockToKey(block);
-        //String subspaceKey = Utils.enchantsToKey(Utils.getEnchants(gatewayPrism));
+        Location loc = anchor.getLocation();
+        ItemStack gatewayPrism = getGatewayPrism();
 
-        for (String subspaceKey : getSubspaces().getKeys(false)) {
+        plugin.getLogger().info(String.format("Using teleportal(%s) at %s(%d, %d, %d)!",
+                Utils.getLoreData(gatewayPrism, "link"), anchor.getWorld().getName(),
+                anchor.getX(), anchor.getY(), anchor.getZ()
+        ));
 
-            List<String> subspaceLinks = getSubspaces().getStringList(subspaceKey);
-            if (subspaceLinks.contains(blockKey)) {
+        // get the exit link for this teleportal...
+        String exitKey = Utils.getLoreData(gatewayPrism, "link");
+        Teleportal exit = Teleportal.getFromStruct(plugin, Utils.keyToBlock(exitKey));
+        if (exit == null) {
+            return;
+        }
+        Location tpLoc = exit.getAnchor().getLocation().add(0.5, -0.5, 0.5);
 
-                getLogger().info(String.format("Using teleportal(%s) at %s(%d, %d, %d)!",
-                        subspaceKey, block.getWorld().getName(), block.getX(), block.getY(), block.getZ()));
+        // choose the appropriate side of the teleportal to emerge from...
+        BlockFace thisFace = this.getFacing();
+        BlockFace exitFace = exit.getFacing();
 
-                // get the next exit link for this teleportal...
-                Block exitLink = null;
-                boolean alteredList = false;
+        int faceOffset = (face.ordinal() - thisFace.ordinal());
+        tpLoc.add(Utils.FACES[Math.floorMod(exitFace.ordinal() + faceOffset, Utils.FACES.length)].getDirection());
 
-                int index;
-                String exitKey;
+        // choose the appropriate yaw and pitch to emerge with...
+        float thisYaw = Utils.blockFaceToYaw(thisFace);
+        float exitYaw = Utils.blockFaceToYaw(exitFace) - 180;
 
-                while (!subspaceLinks.isEmpty()) {
+        tpLoc.setYaw(exitYaw - (thisYaw - entity.getLocation().getYaw()));
+        tpLoc.setPitch(entity.getLocation().getPitch());
 
-                    index = (subspaceLinks.indexOf(blockKey) + 1) % subspaceLinks.size();
-                    exitKey = subspaceLinks.get(index);
-                    exitLink = Utils.keyToBlock(exitKey);
+        // play sound effects...
+        float randomPitch = 0.75f + (Utils.RNG.nextFloat() % 0.75f);
+        anchor.getWorld().playSound(loc, Sound.BLOCK_PORTAL_TRIGGER, SoundCategory.BLOCKS, 0.25f, randomPitch);
 
-                    if (exitLink != null && exitLink.getType() == Material.END_GATEWAY) {
-                        break;
-                    }
-                    else {
-                        alteredList = alteredList || subspaceLinks.remove(exitKey);
-                    }
-                }
-                if (alteredList) {
-                    getSubspaces().set(subspaceKey, subspaceLinks);
-                }
-                if (exitLink == null) {
-                    return;
-                }
+        // teleport the entity...
+        entity.teleport(tpLoc, PlayerTeleportEvent.TeleportCause.END_GATEWAY);
 
-                Location tpLoc = exitLink.getLocation().add(0.5, -0.5, 0.5);
-
-                // choose the appropriate side of the teleportal to emerge from...
-                BlockFace thisDir = getTeleportalFacing(block);
-                BlockFace exitDir = getTeleportalFacing(exitLink);
-                int dirOffset = (face.ordinal() - thisDir.ordinal());
-
-                tpLoc.add(Utils.FACES[Math.floorMod(exitDir.ordinal() + dirOffset, Utils.FACES.length)].getDirection());
-
-                // choose the appropriate yaw and pitch to emerge with...
-                float thisYaw = Utils.blockFaceToYaw(thisDir) + 180;
-                float exitYaw = Utils.blockFaceToYaw(exitDir);
-
-                tpLoc.setYaw(exitYaw - (thisYaw - entity.getLocation().getYaw()));
-                tpLoc.setPitch(entity.getLocation().getPitch());
-
-                // play sound effects...
-                float randomPitch = 0.75f + (Utils.RNG.nextFloat() % 0.75f);
-                block.getWorld().playSound(loc, Sound.BLOCK_PORTAL_TRIGGER, SoundCategory.BLOCKS, 0.25f, randomPitch);
-
-                // teleport the entity...
-                entity.teleport(tpLoc, PlayerTeleportEvent.TeleportCause.END_GATEWAY);
-
-                // disable the end gateway beam...
-                if (block.getState() instanceof EndGateway) {
-                    EndGateway endGateway = (EndGateway) block.getState();
-                    endGateway.setAge(250L);
-                    endGateway.update(true);
-                }
-            }
+        // disable the end gateway beam...
+        if (anchor.getState() instanceof EndGateway) {
+            EndGateway endGateway = (EndGateway) anchor.getState();
+            endGateway.setAge(240L);
+            endGateway.update(true);
         }
     }
 }
