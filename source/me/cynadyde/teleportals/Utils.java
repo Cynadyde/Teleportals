@@ -61,6 +61,30 @@ public class Utils {
     }
 
     /**
+     * Add the specified lines to the given item's lore.
+     */
+    public static void addLore(@Nullable ItemStack item, String...tag) {
+
+        if (item == null) {
+            return;
+        }
+        ItemMeta itemMeta = item.getItemMeta();
+        if (itemMeta == null) {
+            return;
+        }
+
+        List<String> lore = itemMeta.getLore();
+        if (lore == null) {
+            lore = new ArrayList<>();
+        }
+
+        lore.addAll(Arrays.asList(tag));
+
+        itemMeta.setLore(lore);
+        item.setItemMeta(itemMeta);
+    }
+
+    /**
      * Check if the given item has the specified tag in its lore.
      */
     public static boolean hasLoreTag(@Nullable ItemStack item, @NotNull String tag) {
@@ -90,33 +114,8 @@ public class Utils {
     }
 
     /**
-     * Add the specified tag to the given item's lore, if it doesn't already exist.
-     */
-    public static void addLoreTag(@Nullable ItemStack item, @NotNull String tag) {
-
-        if (item == null) {
-            return;
-        }
-        ItemMeta itemMeta = item.getItemMeta();
-        if (itemMeta == null) {
-            return;
-        }
-
-        List<String> lore = itemMeta.getLore();
-        if (lore == null) {
-            lore = new ArrayList<>();
-        }
-
-        lore.add(tag);
-
-        itemMeta.setLore(lore);
-        item.setItemMeta(itemMeta);
-    }
-
-    /**
      * Check if the given item has the specified data key in its lore.
      */
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public static boolean hasLoreData(@Nullable ItemStack item, @NotNull String key) {
 
         String rawKey = ChatColor.stripColor(key).trim().toLowerCase();
@@ -269,7 +268,7 @@ public class Utils {
                                                    @NotNull String key, @Nullable ItemStack heldItem) {
 
         Location loc = block.getLocation();
-        loc.add(0.5, 0.0, 0.5);
+        loc.add(0.5, 0.1, 0.5);
         loc.setYaw(blockFaceToYaw(facing));
 
         ArmorStand marker = (ArmorStand) block.getWorld().spawnEntity(loc, EntityType.ARMOR_STAND);
@@ -297,13 +296,7 @@ public class Utils {
 
         Location origin = block.getLocation().add(0.5, 0.5, 0.5);
 
-        // TODO improve nearby entity search. don't use 0.6 radius. see if bounding box works.
-
-//        BoundingBox box = new BoundingBox(
-//                origin.getBlockX(), origin.getBlockY(), origin.getBlockZ(),
-//                origin.getBlockX()+1, origin.getBlockY()+1, origin.getBlockZ()+1
-//        );
-        for (Entity entity : block.getWorld().getNearbyEntities(origin, 0.6, 0.6, 0.6)) {
+        for (Entity entity : block.getWorld().getNearbyEntities(origin, 0.5, 0.5, 0.5)) {
 
             if (entity.getType() == EntityType.ARMOR_STAND) {
                 ArmorStand armorStand = (ArmorStand) entity;
@@ -327,13 +320,7 @@ public class Utils {
 
         Location origin = block.getLocation().add(0.5, 0.5, 0.5);
 
-        // TODO improve nearby entity search. don't use 0.6 radius. see if bounding box works.
-
-//        BoundingBox box = new BoundingBox(
-//                origin.getBlockX(), origin.getBlockY(), origin.getBlockZ(),
-//                origin.getBlockX()+1, origin.getBlockY()+1, origin.getBlockZ()+1
-//        );
-        for (Entity entity : block.getWorld().getNearbyEntities(origin, 0.6, 0.6, 0.6)) {
+        for (Entity entity : block.getWorld().getNearbyEntities(origin, 0.5, 0.5, 0.5)) {
 
             if (entity.getType() == EntityType.ARMOR_STAND) {
                 ArmorStand armorStand = (ArmorStand) entity;

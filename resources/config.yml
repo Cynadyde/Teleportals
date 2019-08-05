@@ -3,16 +3,20 @@
 #      Configuration File        #
 # ------------------------------ #
 
-# The message strings used by the game. Includes color codes
-# and formatters. If you decide to edit these, make sure the
-# amount and type of formatters are unchanged.
+# The messages used by the plugin. Includes color codes
+# and formatters. If you decide to edit these, make sure
+# the amount and type of formatters are unchanged.
 messages:
-  tag: "&f&l[&bTele&3Portals&f&l]&r "
+  tag: "&f&l[&bTeleportals&f&l]&r "
   no-perms: "&cInsufficient permissions"
   unknown-cmd: "&cUnknown command: \"%s\""
   invalid-arg: "&cInvalid argument given: \"%s\""
   config-reloaded: "&6The config was reloaded by &e%s"
 
-# The display name of the gateway prism.
-# Requires a reload for changes to take effect.
-gateway-prism-display: "&bGateway Prism"
+# Customize the gateway prism item's text.
+# Requires a server reload for changes to take effect.
+gateway-prism:
+  display: "&bGateway Prism"
+  lore:
+    - "&7Shift + right click to LINK."
+    - "&7Right click to ACTIVATE."
