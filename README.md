@@ -1,6 +1,6 @@
 # BookShelves
 
-Teleportals is a Spigot MC Plugin that lets the player build and link together their own End Gateway portals in survival mode. 
+Teleportals is a Spigot MC Plugin that lets the player build and link together End Gateway portals in survival mode. 
 Visit this plugin's [SpigotMC Page]() for more information.
 
 To install, simply place the jar file in your server's `plugins` folder. There are no dependencies.
