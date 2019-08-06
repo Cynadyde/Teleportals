@@ -21,6 +21,7 @@ permissions:
     description: "Grants all admin abilities."
     default: op
     children:
+      teleportals.admin.spawn: true
       teleportals.admin.reload: true
   teleportals.player.*:
     description: "Grants all player abilities."
@@ -30,6 +31,9 @@ permissions:
       teleportals.player.link: true
       teleportals.player.activate: true
       teleportals.player.use: true
+  teleportals.admin.spawn:
+    description: "Grants ability to spawn in a gateway prism."
+    default: false
   teleportals.admin.reload:
     description: "Grants ability to reload the config file."
     default: false

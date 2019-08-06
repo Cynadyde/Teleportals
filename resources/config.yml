@@ -14,8 +14,10 @@ messages:
   no-perms-activate: "&cInsufficient permission to activate teleportals."
   no-perms-deactivate: "&cInsufficient permission to deactivate teleportals."
   no-perms-use: "&cInsufficient permission to use teleportals."
+  not-player: "&cYou must be an in-game player to use that command."
   unknown-cmd: "&cUnknown command: \"%s\""
   invalid-arg: "&cInvalid argument given: \"%s\""
+  spawned-item: "&aSpawned in a gateway prism."
   config-reloaded: "&6The config was reloaded by &e%s"
   plugin-info: |
     &aSending plugin information...
@@ -26,6 +28,7 @@ messages:
     &aWebsite: &b%s
     &7------------------------
     &c/teleportals &7- display plugin help and information.
+    &c/teleportals spawnitem &7- give yourself a gateway prism.
     &c/teleportals reloadconfig &7- reload the plugin's configuration file.
 
 # Customize the plugin's gateway prism item.

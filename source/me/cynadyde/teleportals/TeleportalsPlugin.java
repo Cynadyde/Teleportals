@@ -51,16 +51,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         // create and add the plugin recipes...
         ShapedRecipe recipe;
         {
-            ItemStack item = new ItemStack(Material.GOLDEN_SWORD, getConfig().getInt("gateway-prism.amount"));
-
-            String name = getConfig().getString("gateway-prism.display");
-            List<String> lore = getConfig().getStringList("gateway-prism.lore");
-
-            Utils.setDisplayName(item, (name == null) ? null : Utils.format(name));
-            Utils.addLore(item, Utils.format("&8&o") + gatewayPrismKey.toString());
-            for (String line : lore) {
-                Utils.addLore(item, Utils.format(line));
-            }
+            ItemStack item = makeGatewayPrism(getConfig().getInt("gateway-prism.amount"));
 
             recipe = new ShapedRecipe(gatewayPrismKey, item);
             recipe.shape("OwO", "*#*", "-v-");
@@ -112,6 +103,24 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                 return true;
             }
 
+            // give sub-command given...
+            else if (args[0].equalsIgnoreCase("spawnitem")) {
+
+                if (!sender.hasPermission("teleportals.admin.spawn")) {
+                    sendMsg(sender, "no-perms-cmd");
+                    return false;
+                }
+
+                if (!(sender instanceof Player)) {
+                    sendMsg(sender, "not-player");
+                    return false;
+                }
+
+                sendMsg(sender, "spawned-item");
+                ((Player) sender).getInventory().addItem(makeGatewayPrism(1));
+                return true;
+            }
+
             // reload sub-command given...
             else if (args[0].equalsIgnoreCase("reloadconfig")) {
 
@@ -119,6 +128,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                     sendMsg(sender, "no-perms-cmd");
                     return false;
                 }
+
                 sendMsg(sender, "config-reloaded", sender.getName());
                 saveDefaultConfig();
                 reloadConfig();
@@ -150,6 +160,10 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
             // no sub-commands specified...
             if (args.length == 1) {
+
+                if (sender.hasPermission("teleportals.admin.spawn")) {
+                    results.add("spawnitem");
+                }
 
                 if (sender.hasPermission("teleportals.admin.reload")) {
                     results.add("reloadconfig");
@@ -203,7 +217,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                 else {
                     Long lastInteract = interactCooldown.get(event.getPlayer().getUniqueId());
 
-                    if ((System.currentTimeMillis() - lastInteract) >= 1000L) {
+                    if ((System.currentTimeMillis() - lastInteract) >= 500L) {
                         interactCooldown.remove(event.getPlayer().getUniqueId());
                     }
                     else {
@@ -345,5 +359,24 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                 info.getDescription(),
                 info.getWebsite()
         );
+    }
+
+    /**
+     * Create a new gateway prism item stack.
+     */
+    public @NotNull ItemStack makeGatewayPrism(int amount) {
+
+        ItemStack item = new ItemStack(Material.GOLDEN_SWORD, amount);
+
+        String name = getConfig().getString("gateway-prism.display");
+        List<String> lore = getConfig().getStringList("gateway-prism.lore");
+
+        Utils.setDisplayName(item, (name == null) ? null : Utils.format(name));
+        Utils.addLore(item, Utils.format("&8&o") + gatewayPrismKey.toString());
+        for (String line : lore) {
+            Utils.addLore(item, Utils.format(line));
+        }
+
+        return item;
     }
 }

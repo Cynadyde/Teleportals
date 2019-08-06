@@ -127,7 +127,8 @@ public class Teleportal {
         if (Utils.hasLoreTag(gatewayPrism, plugin.gatewayPrismKey.toString())) {
 
             // set the link on the gateway prism...
-            Utils.setLoreData(gatewayPrism, Utils.format("&6link"), Utils.blockToKey(anchor));
+            //noinspection SpellCheckingInspection
+            Utils.setLoreData(gatewayPrism, Utils.format("&6&klink"), Utils.blockToKey(anchor));
 
             // spawn particle effects and play sfx...
             Location loc = anchor.getLocation().add(0.5, 0.5, 0.5);
