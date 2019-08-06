@@ -62,6 +62,13 @@ public class Teleportal {
     }
 
     /**
+     * Check if the teleportal is properly activated or not.
+     */
+    public boolean isActivated() {
+        return anchor.getType() == Material.END_GATEWAY && getGatewayPrism() != null;
+    }
+
+    /**
      * Get the anchor block of this teleportal's structure.
      */
     public @NotNull Block getAnchor() {

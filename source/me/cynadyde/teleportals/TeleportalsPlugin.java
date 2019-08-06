@@ -13,12 +13,12 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
+import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -114,7 +114,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             else if (args[0].equalsIgnoreCase("reloadconfig")) {
 
                 if (!sender.hasPermission("teleportals.admin.reload")) {
-                    sendMsg(sender, "no-perms");
+                    sendMsg(sender, "no-perms-cmd");
                     return false;
                 }
                 sendMsg(sender, "config-reloaded", sender.getName());
@@ -158,27 +158,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Have the player discover the gateway prism recipe when they pick up an ender crystal.
-     */
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onEntityPickUpItem(@NotNull EntityPickupItemEvent event) {
-
-        // TODO THIS ISN'T WORKING...
-
-        // if the entity is a player...
-        if (event.getEntity() instanceof Player) {
-            Player player = (Player) event.getEntity();
-
-            // if the item picked up was an end crystal...
-            if (event.getItem().getItemStack().getType() == Material.END_CRYSTAL) {
-
-                // discover the gateway prism recipe...
-                player.discoverRecipe(gatewayPrismKey);
-            }
-        }
-    }
-
-    /**
      * Block the player from crafting a gateway prism if they lack permission.
      */
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
@@ -194,7 +173,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                 if (!event.getView().getPlayer().hasPermission("teleportals.player.craft")) {
 
                     // fail their crafting...
-                    sendMsg(event.getView().getPlayer(), "no-perms");
+                    sendMsg(event.getView().getPlayer(), "no-perms-craft");
                     event.getInventory().setResult(null);
                 }
             }
@@ -204,7 +183,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     /**
      * Handle the activation of teleportals.
      */
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerInteract(@NotNull PlayerInteractEvent event) {
 
         // if the player right clicks a block...
@@ -224,15 +203,12 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                     Teleportal teleportal = Teleportal.getFromStruct(this, block);
                     if (teleportal != null) {
 
-                        // cancel the interaction event...
-                        event.setCancelled(true);
-
                         // if the player is sneaking...
                         if (event.getPlayer().isSneaking()) {
 
                             // make sure the player has permission to link a gateway prism...
                             if (!event.getPlayer().hasPermission("teleportals.player.link")) {
-                                sendMsg(event.getPlayer(), "no-perms");
+                                sendMsg(event.getPlayer(), "no-perms-link");
                                 return;
                             }
                             teleportal.linkGatewayPrism(usedItem);
@@ -242,7 +218,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
                             // make sure the player has permission to activate a teleportal...
                             if (!event.getPlayer().hasPermission("teleportals.player.activate")) {
-                                sendMsg(event.getPlayer(), "no-perms");
+                                sendMsg(event.getPlayer(), "no-perms-activate");
                                 return;
                             }
 
@@ -264,22 +240,28 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     /**
      * Handle destruction of teleportals.
      */
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onBlockBreak(@NotNull BlockBreakEvent event) {
 
-        // if a teleportal or teleportal's frame was broken...
-        Teleportal teleportal = Teleportal.getFromStruct(this, event.getBlock());
+        // if the block being broken can be found in an activated teleportal...
+        if (event.getBlock().getType() == Material.END_GATEWAY
+                || event.getBlock().getType() == Material.OBSIDIAN) {
 
-        if (teleportal != null) {
+            // if a teleportal structure is about to be broken...
+            Teleportal teleportal = Teleportal.getFromStruct(this, event.getBlock());
 
-            // make sure the player has permission to deactivate a teleportal...
-            if (!event.getPlayer().hasPermission("teleportals.player.deactivate")) {
-                sendMsg(event.getPlayer(), "no-perms");
-                return;
+            if (teleportal != null && teleportal.isActivated()) {
+
+                // make sure the player has permission to deactivate a teleportal...
+                if (!event.getPlayer().hasPermission("teleportals.player.deactivate")) {
+                    sendMsg(event.getPlayer(), "no-perms-deactivate");
+                    event.setCancelled(true);
+                    return;
+                }
+
+                // deactivate the teleportal...
+                teleportal.deactivate();
             }
-
-            // deactivate the teleportal...
-            teleportal.deactivate();
         }
     }
 
@@ -312,7 +294,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
                             // make sure the player has permission to use a teleportal...
                             if (!shooter.hasPermission("teleportals.player.use")) {
-                                sendMsg(shooter, "no-perms");
+                                sendMsg(shooter, "no-perms-use");
                                 return;
                             }
                         }
@@ -348,18 +330,14 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
      */
     public void sendInfo(@NotNull CommandSender sender) {
 
-        String tag = getTag();
-        List<String> lines = new ArrayList<>();
+        PluginDescriptionFile info = getDescription();
 
-        lines.add(tag + Utils.format("&6---==-&f[&e %s &f]&6-==---", getDescription().getName()));
-        lines.add(tag + Utils.format("&aVersion: &b%s", getDescription().getVersion()));
-        lines.add(tag + Utils.format("&aAuthors: &b%s", String.join(", ", getDescription().getAuthors())));
-        lines.add(tag + Utils.format("&aDescription: &b%s", getDescription().getDescription()));
-        lines.add(tag + Utils.format("&aWebsite: &b%s", getDescription().getWebsite()));
-        lines.add(tag + Utils.format("&7------------------------"));
-        lines.add(tag + Utils.format("&c/teleportals &7- display plugin help and information."));
-        lines.add(tag + Utils.format("&c/teleportals reloadconfig &7- reload the plugin's configuration file."));
-
-        sender.sendMessage(lines.toArray(new String[0]));
+        sendMsg(sender, "plugin-info",
+                info.getName(),
+                info.getVersion(),
+                String.join(", ", info.getAuthors()),
+                info.getDescription(),
+                info.getWebsite()
+        );
     }
 }

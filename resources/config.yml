@@ -8,13 +8,29 @@
 # the amount and type of formatters are unchanged.
 messages:
   tag: "&f&l[&bTeleportals&f&l]&r "
-  no-perms: "&cInsufficient permissions"
+  no-perms-cmd: "&cInsufficient permission to perform that command."
+  no-perms-craft: "&cInsufficient permission to craft that item."
+  no-perms-link: "&cInsufficient permission to link with teleportals."
+  no-perms-activate: "&cInsufficient permission to activate teleportals."
+  no-perms-deactivate: "&cInsufficient permission to deactivate teleportals."
+  no-perms-use: "&cInsufficient permission to use teleportals."
   unknown-cmd: "&cUnknown command: \"%s\""
   invalid-arg: "&cInvalid argument given: \"%s\""
   config-reloaded: "&6The config was reloaded by &e%s"
+  plugin-info: |
+    &aSending plugin information...
+    &6---==-&f[&e %s Plugin &f]&6-==---
+    &aVersion: &b%s
+    &aAuthors: &b%s
+    &aDescription: &b%s
+    &aWebsite: &b%s
+    &7------------------------
+    &c/teleportals &7- display plugin help and information.
+    &c/teleportals reloadconfig &7- reload the plugin's configuration file.
 
-# Customize the gateway prism item's text.
-# Requires a server reload for changes to take effect.
+# Customize the plugin's gateway prism item.
+# Requires a plugin reload for changes to take effect.
+# Does not change existing items in the world.
 gateway-prism:
   display: "&bGateway Prism"
   lore:
