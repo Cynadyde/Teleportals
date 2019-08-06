@@ -32,6 +32,7 @@ messages:
 # Requires a plugin reload for changes to take effect.
 # Does not change existing items in the world.
 gateway-prism:
+  amount: 1
   display: "&bGateway Prism"
   lore:
     - "&7Shift + right click to LINK."

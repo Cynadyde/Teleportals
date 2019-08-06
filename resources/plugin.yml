@@ -29,7 +29,6 @@ permissions:
       teleportals.player.craft: true
       teleportals.player.link: true
       teleportals.player.activate: true
-      teleportals.player.deactivate: true
       teleportals.player.use: true
   teleportals.admin.reload:
     description: "Grants ability to reload the config file."
@@ -42,9 +41,6 @@ permissions:
     default: false
   teleportals.player.activate:
     description: "Grants ability to activate a teleportal."
-    default: false
-  teleportals.player.deactivate:
-    description: "Grants ability to deactivate a teleportal."
     default: false
   teleportals.player.use:
     description: "Grants ability to use a teleportal."

@@ -64,6 +64,7 @@ public class Teleportal {
     /**
      * Check if the teleportal is properly activated or not.
      */
+    @SuppressWarnings("unused")
     public boolean isActivated() {
         return anchor.getType() == Material.END_GATEWAY && getGatewayPrism() != null;
     }
@@ -174,6 +175,13 @@ public class Teleportal {
             // set the anchor block to an end gateway...
             anchor.setType(Material.END_GATEWAY);
 
+            // disable the end gateway beam...
+            if (anchor.getState() instanceof EndGateway) {
+                EndGateway endGateway = (EndGateway) anchor.getState();
+                endGateway.setAge(Long.MIN_VALUE); // approx. 292 million years
+                endGateway.update(true);
+            }
+
             // spawn particle effects and play sfx...
             anchor.getWorld().spawnParticle(Particle.END_ROD, loc, 200, 0.1, 0.1, 0.1, 0.10);
             anchor.getWorld().spawnParticle(Particle.DRAGON_BREATH, loc, 100, 0.25, 0.25, 0.25, 0.075);
@@ -269,12 +277,5 @@ public class Teleportal {
 
         // teleport the entity...
         entity.teleport(tpLoc, PlayerTeleportEvent.TeleportCause.END_GATEWAY);
-
-        // disable the end gateway beam...
-        if (anchor.getState() instanceof EndGateway) {
-            EndGateway endGateway = (EndGateway) anchor.getState();
-            endGateway.setAge(240L);
-            endGateway.update(true);
-        }
     }
 }

@@ -23,8 +23,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
  * Main class of the Teleportals plugin.
@@ -34,6 +33,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
     public final NamespacedKey teleportalKey = new NamespacedKey(this, "teleportal");
     public final NamespacedKey gatewayPrismKey = new NamespacedKey(this, "gateway_prism");
+
+    private final Map<UUID,Long> interactCooldown = new HashMap<>();
 
     /**
      * The plugin is enabled.
@@ -50,7 +51,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         // create and add the plugin recipes...
         ShapedRecipe recipe;
         {
-            ItemStack item = new ItemStack(Material.GOLDEN_SWORD, 4);
+            ItemStack item = new ItemStack(Material.GOLDEN_SWORD, getConfig().getInt("gateway-prism.amount"));
 
             String name = getConfig().getString("gateway-prism.display");
             List<String> lore = getConfig().getStringList("gateway-prism.lore");
@@ -91,6 +92,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     @Override
     public void onDisable() {
 
+        interactCooldown.clear();
     }
 
     /**
@@ -189,15 +191,30 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         // if the player right clicks a block...
         if (event.getAction().equals(Action.RIGHT_CLICK_BLOCK)) {
 
-            // if the player was using a gateway prism...
-            ItemStack usedItem = event.getPlayer().getInventory().getItemInMainHand();
+            // if the clicked block was the same material as a teleportal...
+            Block block = event.getClickedBlock();
+            if (block != null && (block.getType() == Material.ENDER_CHEST
+                    || block.getType() == Material.END_GATEWAY)) {
 
-            if (Utils.hasLoreTag(usedItem, gatewayPrismKey.toString())) {
+                // make sure the cooldown for this player is over...
+                if (!interactCooldown.containsKey(event.getPlayer().getUniqueId())) {
+                    interactCooldown.put(event.getPlayer().getUniqueId(), System.currentTimeMillis());
+                }
+                else {
+                    Long lastInteract = interactCooldown.get(event.getPlayer().getUniqueId());
 
-                // if the clicked block was an ender chest...
-                Block block = event.getClickedBlock();
-                if (block != null && (block.getType() == Material.ENDER_CHEST
-                        || block.getType() == Material.END_GATEWAY)) {
+                    if ((System.currentTimeMillis() - lastInteract) >= 1000L) {
+                        interactCooldown.remove(event.getPlayer().getUniqueId());
+                    }
+                    else {
+                        return;
+                    }
+                }
+
+                // if the player was using a gateway prism...
+                ItemStack usedItem = event.getPlayer().getInventory().getItemInMainHand();
+
+                if (Utils.hasLoreTag(usedItem, gatewayPrismKey.toString())) {
 
                     // if the clicked block was part of a teleportal structure...
                     Teleportal teleportal = Teleportal.getFromStruct(this, block);
@@ -211,6 +228,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                                 sendMsg(event.getPlayer(), "no-perms-link");
                                 return;
                             }
+                            // link the gateway prism to this teleportal...
                             teleportal.linkGatewayPrism(usedItem);
                         }
                         // else...
@@ -240,28 +258,16 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     /**
      * Handle destruction of teleportals.
      */
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(@NotNull BlockBreakEvent event) {
 
-        // if the block being broken can be found in an activated teleportal...
-        if (event.getBlock().getType() == Material.END_GATEWAY
-                || event.getBlock().getType() == Material.OBSIDIAN) {
+        // if a teleportal structure is about to be broken...
+        Teleportal teleportal = Teleportal.getFromStruct(this, event.getBlock());
 
-            // if a teleportal structure is about to be broken...
-            Teleportal teleportal = Teleportal.getFromStruct(this, event.getBlock());
+        if (teleportal != null) {
 
-            if (teleportal != null && teleportal.isActivated()) {
-
-                // make sure the player has permission to deactivate a teleportal...
-                if (!event.getPlayer().hasPermission("teleportals.player.deactivate")) {
-                    sendMsg(event.getPlayer(), "no-perms-deactivate");
-                    event.setCancelled(true);
-                    return;
-                }
-
-                // deactivate the teleportal...
-                teleportal.deactivate();
-            }
+            // deactivate the teleportal...
+            teleportal.deactivate();
         }
     }
 
