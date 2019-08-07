@@ -17,6 +17,7 @@ import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -34,7 +35,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     public final NamespacedKey teleportalKey = new NamespacedKey(this, "teleportal");
     public final NamespacedKey gatewayPrismKey = new NamespacedKey(this, "gateway_prism");
 
-    private final Map<UUID,Long> interactCooldown = new HashMap<>();
+    private final Map<UUID, Long> interactCooldown = new HashMap<>();
 
     /**
      * The plugin is enabled.
@@ -49,19 +50,44 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         getConfig().options().copyDefaults(true);
 
         // create and add the plugin recipes...
-        ShapedRecipe recipe;
+        Recipe recipe;
         {
-            ItemStack item = makeGatewayPrism(getConfig().getInt("gateway-prism.amount"));
+            // create the result item...
+            int amount = getConfig().getInt("gateway-prism.amount");
 
-            recipe = new ShapedRecipe(gatewayPrismKey, item);
-            recipe.shape("OwO", "*#*", "-v-");
+            if (amount < 1) {
+                getLogger().warning(String.format(
+                        "[Config] The amount '%d' at '%s' is invalid.",
+                        amount, "gateway-prism.amount"
+                ));
+                getLogger().warning("[Config] Using the default value: '1'.");
 
-            recipe.setIngredient('O', Material.ENDER_EYE);
-            recipe.setIngredient('*', Material.SHULKER_SHELL);
-            recipe.setIngredient('-', Material.GOLD_INGOT);
-            recipe.setIngredient('w', Material.DRAGON_HEAD);
-            recipe.setIngredient('#', Material.END_CRYSTAL);
-            recipe.setIngredient('v', Material.BEACON);
+                amount = 1;
+            }
+            ItemStack item = makeGatewayPrism(amount);
+
+            // try to load the recipe in the configuration file...
+            try {
+                recipe = Utils.createRecipe(gatewayPrismKey, item, getConfig(), "gateway-prism");
+            }
+            catch (Exception ex) {
+
+                getLogger().warning(String.format(
+                        "[Config] The Gateway Prism recipe defined in the config was malformed: %s",
+                        ex.getMessage()
+                ));
+                getLogger().warning("[Config] Using the default recipe instead.");
+
+                recipe = new ShapedRecipe(gatewayPrismKey, item);
+                ((ShapedRecipe) recipe).shape("OwO", "*u*", "-v-");
+
+                ((ShapedRecipe) recipe).setIngredient('O', Material.ENDER_EYE);
+                ((ShapedRecipe) recipe).setIngredient('*', Material.SHULKER_SHELL);
+                ((ShapedRecipe) recipe).setIngredient('-', Material.GOLD_INGOT);
+                ((ShapedRecipe) recipe).setIngredient('w', Material.DRAGON_HEAD);
+                ((ShapedRecipe) recipe).setIngredient('u', Material.END_CRYSTAL);
+                ((ShapedRecipe) recipe).setIngredient('v', Material.BEACON);
+            }
         }
         getServer().addRecipe(recipe);
 
@@ -162,11 +188,15 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             if (args.length == 1) {
 
                 if (sender.hasPermission("teleportals.admin.spawn")) {
-                    results.add("spawnitem");
+                    if ("spawnitem".startsWith(args[0])) {
+                        results.add("spawnitem");
+                    }
                 }
 
                 if (sender.hasPermission("teleportals.admin.reload")) {
-                    results.add("reloadconfig");
+                    if ("reloadconfig".startsWith(args[0])) {
+                        results.add("reloadconfig");
+                    }
                 }
             }
         }
@@ -366,7 +396,23 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
      */
     public @NotNull ItemStack makeGatewayPrism(int amount) {
 
-        ItemStack item = new ItemStack(Material.GOLDEN_SWORD, amount);
+        String matName = getConfig().getString("gateway-prism.material");
+        Material mat;
+        try {
+            mat = Material.valueOf(matName);
+        }
+        catch (IllegalArgumentException ex) {
+
+            getLogger().warning(String.format(
+                    "[Config] The material '%s' at '%s' is invalid.",
+                    matName, "gateway-prism.material"
+            ));
+            getLogger().warning("Using the default value: 'GOLDEN_SWORD'.");
+
+            mat = Material.GOLDEN_SWORD;
+        }
+
+        ItemStack item = new ItemStack(mat, amount);
 
         String name = getConfig().getString("gateway-prism.display");
         List<String> lore = getConfig().getStringList("gateway-prism.lore");

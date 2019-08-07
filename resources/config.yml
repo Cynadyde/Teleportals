@@ -32,11 +32,36 @@ messages:
     &c/teleportals reloadconfig &7- reload the plugin's configuration file.
 
 # Customize the plugin's gateway prism item.
-# Requires a plugin reload for changes to take effect.
-# Does not change existing items in the world.
+# You may use 'recipe-shapeless' instead of 'recipe-shaped'.
+# Requires a full plugin reload for changes to take effect.
+# Does not affect existing items in the world.
+# Existing items will still work.
 gateway-prism:
   amount: 1
+  material: GOLDEN_SWORD
   display: "&bGateway Prism"
   lore:
     - "&7Shift + right click to LINK."
     - "&7Right click to ACTIVATE."
+  # recipe-shapeless:
+  #   - ENDER_EYE
+  #   - DRAGON_HEAD
+  #   - ENDER_EYE
+  #   - SHULKER_SHELL
+  #   - END_CRYSTAL
+  #   - SHULKER_SHELL
+  #   - GOLD_INGOT
+  #   - BEACON
+  #   - GOLD_INGOT
+  recipe-shaped:
+    shape:
+      - "OwO"
+      - "*u*"
+      - "-v-"
+    map:
+      'O': ENDER_EYE
+      '*': SHULKER_SHELL
+      '-': GOLD_INGOT
+      'w': DRAGON_HEAD
+      'u': END_CRYSTAL
+      'v': BEACON
