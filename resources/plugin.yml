@@ -6,7 +6,7 @@ description: >
   Build End Gateway portals in survival mode.
 authors:
   - Cynadyde (May 2019)
-website: N/A
+website: https://www.spigotmc.org/resources/teleportals.70127/
 commands:
   teleportals:
     description: The Teleportals plugin command.

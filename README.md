@@ -1,17 +1,17 @@
 # Teleportals
 
 Teleportals is a Spigot MC Plugin that lets the player build and link together End Gateway portals in survival mode. 
-Visit this plugin's [SpigotMC Page]() for more information.
+Visit this plugin's [SpigotMC Page](https://www.spigotmc.org/resources/teleportals.70127/) for more information.
 
 To install, simply place the jar file in your server's `plugins` folder. There are no dependencies.
 
 ## Downloads
 
 ##### For Minecraft 1.14.X:
-> [Teleportals_1.14.4-1.jar]()
+> [Teleportals_1.14.4-1.jar](https://github.com/Cynadyde/Teleportals/raw/master/builds/Teleportals_1.14.4_1.jar)
 
 ## Bugs & Feedback
 
 If you find a bug or would like to give feedback and suggestions, please visit
-the plugin's [Discussion Thread]().
-You may also use the [Issue Tracker]().
+the plugin's [Discussion Thread](https://www.spigotmc.org/threads/teleportals.388724/).
+You may also use the [Issue Tracker](https://github.com/Cynadyde/Teleportals/issues).
