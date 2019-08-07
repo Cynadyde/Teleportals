@@ -31,7 +31,7 @@ public class Teleportal {
             return null;
         }
 
-        for (BlockFace rel : new BlockFace[] {BlockFace.SELF, BlockFace.UP, BlockFace.DOWN}) {
+        for (BlockFace rel : new BlockFace[]{ BlockFace.SELF, BlockFace.UP, BlockFace.DOWN }) {
 
             Teleportal teleportal = new Teleportal(plugin, block.getRelative(rel));
 
@@ -147,7 +147,8 @@ public class Teleportal {
         boolean success = false;
         Location loc = anchor.getLocation().add(0.5, 0.5, 0.5);
 
-        activating: {
+        activating:
+        {
 
             // make sure the given item is a linked gateway prism...
             if (!Utils.hasLoreTag(gatewayPrism, plugin.gatewayPrismKey.toString())) {
