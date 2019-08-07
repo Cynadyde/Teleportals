@@ -3,10 +3,15 @@ package me.cynadyde.teleportals;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
+import org.bukkit.inventory.ShapedRecipe;
+import org.bukkit.inventory.ShapelessRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.EulerAngle;
 import org.jetbrains.annotations.NotNull;
@@ -23,7 +28,7 @@ public class Utils {
     /**
      * Block faces in the four cardinal directions.
      */
-    public static final BlockFace[] FACES = {BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST};
+    public static final BlockFace[] FACES = { BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST };
 
     /**
      * Java's random number generator.
@@ -63,7 +68,7 @@ public class Utils {
     /**
      * Add the specified lines to the given item's lore.
      */
-    public static void addLore(@Nullable ItemStack item, String...tag) {
+    public static void addLore(@Nullable ItemStack item, String... tag) {
 
         if (item == null) {
             return;
@@ -283,7 +288,7 @@ public class Utils {
         marker.setSmall(true);
         marker.setArms(true);
 
-        marker.setRightArmPose(new EulerAngle(-Math.PI/2, 0, 0));
+        marker.setRightArmPose(new EulerAngle(-Math.PI / 2, 0, 0));
         marker.setItemInHand(heldItem);
 
         return marker;
@@ -334,5 +339,131 @@ public class Utils {
                 }
             }
         }
+    }
+
+    /**
+     * Attempt to create a specified recipe from the given config.
+     * Looks for a shapeless recipe before looking for a shaped recipe.
+     */
+    public static @NotNull Recipe createRecipe(
+
+            @NotNull NamespacedKey key,
+            @NotNull ItemStack result,
+            @NotNull FileConfiguration config,
+            @NotNull String sectionName
+
+    ) throws IllegalArgumentException {
+
+        // make sure the specified config section exists...
+        ConfigurationSection section = config.getConfigurationSection(sectionName);
+        if (section == null) {
+            throw new IllegalArgumentException(String.format(
+                    "The section '%s' does not exist.",
+                    sectionName
+            ));
+        }
+
+        Recipe recipe;
+
+        // if a shapeless recipe was defined...
+        if (section.get("recipe-shapeless") != null) {
+
+            List<String> ingredients = section.getStringList("recipe-shapeless");
+
+            // make sure the ingredients list is not empty...
+            if (ingredients.isEmpty()) {
+                throw new IllegalArgumentException(String.format(
+                        "The ingredients list at '%s.recipe-shapeless' is empty.",
+                        sectionName
+                ));
+            }
+
+            recipe = new ShapelessRecipe(key, result);
+
+            // for each material name listed in the config...
+            for (String matName : ingredients) {
+
+                // try to add the material enum to the recipe...
+                Material mat;
+                try {
+                    mat = Material.valueOf(matName);
+                }
+                catch (IllegalArgumentException ex) {
+                    throw new IllegalArgumentException(String.format(
+                            "The material name '%s' in '%s.recipe-shapeless' is invalid.",
+                            matName, sectionName
+                    ));
+                }
+                ((ShapelessRecipe) recipe).addIngredient(mat);  // uncaught IllegalArgumentException
+            }
+        }
+        // else, if a shaped recipe was defined...
+        else if (section.isConfigurationSection("recipe-shaped")) {
+
+            ConfigurationSection shapedSection = section.getConfigurationSection("recipe-shaped");
+            assert shapedSection != null;
+
+            recipe = new ShapedRecipe(key, result);
+
+            // get and set the recipe's shape from the config...
+            if (shapedSection.get("shape") == null) {
+                throw new IllegalArgumentException(String.format(
+                        "Missing shape in '%s'",
+                        shapedSection.getCurrentPath()
+                ));
+            }
+            List<String> shape = shapedSection.getStringList("shape");
+            ((ShapedRecipe) recipe).shape(shape.toArray(new String[0]));  // uncaught IllegalArgumentException
+
+            // get the ingredients mapping from the config...
+            ConfigurationSection mapSection = shapedSection.getConfigurationSection("map");
+
+            if (mapSection == null || mapSection.getKeys(false).isEmpty()) {
+                throw new IllegalArgumentException(String.format(
+                        "The ingredients mapping at '%s.map' is missing or empty.",
+                        shapedSection
+                ));
+            }
+            // for each key-value defined in the mapping...
+            for (String mapKey : mapSection.getKeys(false)) {
+
+                // make sure the key is 1 char...
+                if (mapKey.length() != 1) {
+                    throw new IllegalArgumentException(String.format(
+                            "The key '%s' in '%s' is invalid.",
+                            mapKey, mapSection.getCurrentPath()
+                    ));
+                }
+                // try to add the material enum to the recipe...
+                String matName = mapSection.getString(mapKey);
+                Material mat;
+                try {
+                    mat = Material.valueOf(matName);
+                }
+                catch (IllegalArgumentException ex) {
+                    throw new IllegalArgumentException(String.format(
+                            "The material name '%s' at '%s.%s' is invalid.",
+                            matName, mapSection.getCurrentPath(), mapKey
+                    ));
+                }
+                try {
+                    ((ShapedRecipe) recipe).setIngredient(mapKey.charAt(0), mat);
+                }
+                catch (IllegalArgumentException ignored) {
+                    // if the symbol does not appear in the shape, just ignore
+                    // it and continue-- the config's copied defaults will most
+                    // likely set this off otherwise.
+                }
+            }
+        }
+        // if no recipe was defined...
+        else {
+            throw new IllegalArgumentException(String.format(
+                    "A recipe for '%s' was not defined.",
+                    sectionName
+            ));
+        }
+
+        return recipe;
     }
 }
