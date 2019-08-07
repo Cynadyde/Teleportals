@@ -8,7 +8,7 @@ To install, simply place the jar file in your server's `plugins` folder. There a
 ## Downloads
 
 ##### For Minecraft 1.14.X:
-> [Teleportals_1.14.4-1.jar](https://github.com/Cynadyde/Teleportals/raw/master/builds/Teleportals_1.14.4_1.jar)
+> [Teleportals_1.14.4-1.jar](https://github.com/Cynadyde/Teleportals/raw/master/builds/Teleportals_1.14.4-1.jar)
 
 ## Bugs & Feedback
 
