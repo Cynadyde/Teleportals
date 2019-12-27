@@ -22,7 +22,7 @@ import java.util.*;
 /**
  * Utilities for the Teleportals plugin.
  */
-@SuppressWarnings({ "WeakerAccess" })
+@SuppressWarnings({ "WeakerAccess", "DuplicatedCode" })
 public class Utils {
 
     /**
@@ -245,9 +245,9 @@ public class Utils {
 
             if (world != null) {
 
-                int xPos = Integer.valueOf(tokens[1]);
-                int yPos = Integer.valueOf(tokens[2]);
-                int zPos = Integer.valueOf(tokens[3]);
+                int xPos = Integer.parseInt(tokens[1]);
+                int yPos = Integer.parseInt(tokens[2]);
+                int zPos = Integer.parseInt(tokens[3]);
 
                 return world.getBlockAt(xPos, yPos, zPos);
             }
