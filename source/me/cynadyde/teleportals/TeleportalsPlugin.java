@@ -21,6 +21,8 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
+import org.bukkit.permissions.Permission;
+import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
@@ -40,7 +42,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     public final NamespacedKey teleportalKey = new NamespacedKey(this, "teleportal");
     public final NamespacedKey gatewayPrismKey = new NamespacedKey(this, "gateway_prism");
 
-    private final File dataFile = new File(getDataFolder(), "data.yml");
+    private final File dataFile = new File(getDataFolder(), "metadata.yml");
     private YamlConfiguration dataYaml = new YamlConfiguration();
 
     private final Map<UUID, Long> interactCooldown = new HashMap<>();
@@ -384,6 +386,33 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
+     * {@inheritDoc}
+     *
+     */
+    @Override
+    public void reloadConfig() {
+        super.reloadConfig();
+
+//        Permission.loadPermissions(
+//                lazyPermissions,
+//                "Permission node '%s' in plugin description file for " + getDescription().getFullName() + " is invalid",
+//                getDescription().getPermissionDefault());
+
+        // FIXME can't do this, as descriptor permission list is immutable...
+
+        ConfigurationSection ymlGroups = getConfig().getConfigurationSection("groups");
+        if (ymlGroups != null) {
+            for (String group : ymlGroups.getKeys(false)) {
+
+                getDescription().getPermissions().add(new Permission(
+                        "teleportals.group." + group,
+                        "Sets the player to use the plugin's '" + group + "' permission group.",
+                        PermissionDefault.FALSE));
+            }
+        }
+    }
+
+    /**
      * Reloads metadata from file, if any enabled.
      */
     public void reloadDataYaml() {
@@ -401,7 +430,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                 Files.createFile(dataFile.toPath());
             }
             catch (IOException ex) {
-                getLogger().severe("Unable to create the data.yml file: " + ex.getMessage());
+                getLogger().severe("Unable to create the metadata.yml file: " + ex.getMessage());
                 getLogger().severe("Plugin will have reduced functionality.");
             }
         }
@@ -424,7 +453,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                 dataYaml.save(dataFile);
             }
             catch (IOException ex) {
-                getLogger().severe("Unable to save to the data.yml file: " + ex.getMessage());
+                getLogger().severe("Unable to save to the metadata.yml file: " + ex.getMessage());
                 getLogger().severe("Plugin will have reduced functionality.");
             }
         }
@@ -465,7 +494,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         if (!getConfig().getBoolean("metadata.track-active-portal-counts")) {
             return null;
         }
-        ConfigurationSection ymlGroups = getConfig().getConfigurationSection("group");
+        ConfigurationSection ymlGroups = getConfig().getConfigurationSection("groups");
         if (ymlGroups != null) {
 
             Set<String> groups = ymlGroups.getKeys(false);
