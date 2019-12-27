@@ -40,18 +40,20 @@ groups:
   limitedplayer:
     max-active-portals: 10
 
+# if you have a metadata option enabled and you
+# disable it, any collected data will be lost.
 metadata:
   # If you wish to use 'max-active-portals' on
   # your server, you must set this to true
   track-active-portal-counts: false
 
-# If any metadata are enabled, a 'metadata.yml' will
-# be kept in the plugin's folder. Otherwise, no file
-# will be created and you can ignore this section.
-#   Requires a full PLUGIN reload for changes to take effect.
-autosave:
-  enabled: true
-  interval: 1200  # seconds
+  # If any metadata are enabled, a metadata file will
+  # be kept in the plugin's folder. Otherwise, no file
+  # will be created and you can ignore this section.
+  #   Requires a full PLUGIN reload for changes to take effect.
+  autosave:
+    enabled: true
+    interval: 1200  # seconds
 
 # Customize the plugin's gateway prism item.
 # 'reusable' means the gateway prism is dropped when the portal is broken.

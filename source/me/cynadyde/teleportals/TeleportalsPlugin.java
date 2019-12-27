@@ -61,8 +61,10 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         reloadDataYaml();
 
         // set up the auto-saving feature...
-        int interval = Math.max(60, getConfig().getInt("autosave.interval")) * 20;  // convert seconds to ticks
-        getServer().getScheduler().scheduleSyncRepeatingTask(this, this::saveDataYaml, interval, interval);
+        if (getConfig().getBoolean("metadata.autosave.enabled")) {
+            int interval = Math.max(60, getConfig().getInt("metadata.autosave.interval")) * 20;  // seconds to ticks
+            getServer().getScheduler().scheduleSyncRepeatingTask(this, this::saveDataYaml, interval, interval);
+        }
 
         // create and add the plugin recipes...
         Recipe recipe;
@@ -417,7 +419,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Saves collected metadata to file, if any enabled.
+     * Saves collected metadata to file, if any are enabled, else removes the file.
      */
     public void saveDataYaml() {
 
@@ -432,6 +434,14 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                 getLogger().severe("Plugin will have reduced functionality.");
             }
         }
+        else {
+            try {
+                Files.deleteIfExists(dataFile.toPath());
+            }
+            catch (IOException ex) {
+                getLogger().warning("Unable to remove the metadata.yml file: " + ex.getMessage());
+            }
+        }
     }
 
     /**
@@ -443,10 +453,13 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         ConfigurationSection ymlMetadata = getConfig().getConfigurationSection("metadata");
         if (ymlMetadata != null) {
             for (String key : ymlMetadata.getKeys(false)) {
-                getLogger().info(Utils.format("[DEBUG] %s is %b", key, ymlMetadata.getBoolean(key)));
-                if (ymlMetadata.getBoolean(key)) {
-                    result = true;
-                    break;
+                if (ymlMetadata.isBoolean(key)) {
+                    getLogger().info(Utils.format("[DEBUG] %s is %b", key, ymlMetadata.getBoolean(key)));
+
+                    if (ymlMetadata.getBoolean(key)) {
+                        result = true;
+                        break;
+                    }
                 }
             }
         }
