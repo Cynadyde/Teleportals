@@ -544,7 +544,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
      * Send a message from the plugin using the given key and formatter objects.
      * If the key does not exist, it will be used as a message template itself.
      */
-    public void sendMsg(CommandSender sender, @NotNull String key, Object... objs) {
+    public void sendMsg(CommandSender sender, @NotNull String key, @Nullable Object... objs) {
 
         String template = getConfig().getString("messages." + key);
         sender.sendMessage(getTag() + Utils.format((template == null) ? key : template, objs));
