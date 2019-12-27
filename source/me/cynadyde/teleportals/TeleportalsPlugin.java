@@ -41,6 +41,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     public final NamespacedKey gatewayPrismKey = new NamespacedKey(this, "gateway_prism");
 
     private final File dataFile = new File(getDataFolder(), "data.yml");
+    private YamlConfiguration dataYaml = new YamlConfiguration();
 
     private final Map<UUID, Long> interactCooldown = new HashMap<>();
 
@@ -55,6 +56,13 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         reloadConfig();
 
         getConfig().options().copyDefaults(true);
+
+        // set up the metadata file...
+        reloadDataYaml();
+
+        // set up the auto-saving feature...
+        int interval = Math.max(60, getConfig().getInt("autosave.interval"));
+        getServer().getScheduler().scheduleSyncRepeatingTask(this, this::saveDataYaml, 0L, interval);
 
         // create and add the plugin recipes...
         Recipe recipe;
@@ -378,12 +386,15 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     /**
      * Get the plugin's chat tag.
      */
-    public @NotNull String getTag() {
-        String tag = getConfig().getString("messages.tag");
-        return (tag == null) ? "" : Utils.format(tag);
-    }
+    public void reloadDataYaml() {
 
-    public YamlConfiguration getDataYaml() {
+        // if no meta data options were enabled, just return an empty data yaml...
+
+        if (!anyMetadataEnabled()) {
+            dataYaml = new YamlConfiguration();
+        }
+
+        // else, load meta data from file...
 
         if (!dataFile.exists()) {
             try {
@@ -394,18 +405,55 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                 getLogger().severe("Plugin will have reduced functionality.");
             }
         }
-        return YamlConfiguration.loadConfiguration(dataFile);
+        dataYaml = YamlConfiguration.loadConfiguration(dataFile);
+
+        // only keep sections that are enabled...
+
+        if (!getConfig().getBoolean("metadata.track-active-portal-counts", false)) {
+            dataYaml.set("player-active-portal-counts", null);
+        }
     }
 
-    public void saveDataYaml(YamlConfiguration ymlData) {
+    /**
+     * Saves collected metadata to file, if any enabled.
+     */
+    public void saveDataYaml() {
 
-        try {
-            ymlData.save(dataFile);
+        if (anyMetadataEnabled()) {
+            try {
+                dataYaml.save(dataFile);
+            }
+            catch (IOException ex) {
+                getLogger().severe("Unable to save to the data.yml file: " + ex.getMessage());
+                getLogger().severe("Plugin will have reduced functionality.");
+            }
         }
-        catch (IOException ex) {
-            getLogger().severe("Unable to save to the data.yml file: " + ex.getMessage());
-            getLogger().severe("Plugin will have reduced functionality.");
+    }
+
+    /**
+     * Tests if any metadata options are enabled in the config.
+     */
+    public boolean anyMetadataEnabled() {
+
+        boolean result = false;
+        ConfigurationSection ymlMetadata = dataYaml.getConfigurationSection("metadata");
+        if (ymlMetadata != null) {
+            for (String key : ymlMetadata.getKeys(false)) {
+                if (ymlMetadata.getBoolean(key)) {
+                    result = true;
+                    break;
+                }
+            }
         }
+        return result;
+    }
+
+    /**
+     * Gets the plugin's chat tag.
+     */
+    public @NotNull String getTag() {
+        String tag = getConfig().getString("messages.tag");
+        return (tag == null) ? "" : Utils.format(tag);
     }
 
     /**
@@ -413,7 +461,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
      */
     public Integer getMaxActivePortalLimit(Player player) {
 
-        if (!getConfig().getBoolean("track-active-portal-counts", false)) {
+        if (!getConfig().getBoolean("metadata.track-active-portal-counts")) {
             return null;
         }
         ConfigurationSection ymlGroups = getConfig().getConfigurationSection("group");
@@ -436,15 +484,14 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
      */
     public int getActivePortalCount(Player player) {
 
-        if (!getConfig().getBoolean("track-active-portal-counts", false)) {
+        if (!getConfig().getBoolean("metadata.track-active-portal-counts")) {
             return 0;
         }
-        YamlConfiguration ymlData = getDataYaml();
         ConfigurationSection ymlPlayerActivePortalCounts =
-                ymlData.getConfigurationSection("player-active-portal-counts");
+                dataYaml.getConfigurationSection("player-active-portal-counts");
 
         if (ymlPlayerActivePortalCounts == null) {
-            ymlData.createSection("player-active-portal-counts");
+            dataYaml.createSection("player-active-portal-counts");
             return 0;
         }
         String key = player.getUniqueId().toString();
@@ -456,16 +503,14 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
     public void augActivePortalCount(Player player, int amount) {
 
-        if (!getConfig().getBoolean("track-active-portal-counts", false)) {
+        if (!getConfig().getBoolean("metadata.track-active-portal-counts")) {
             return;
         }
-        YamlConfiguration ymlData = getDataYaml();
         ConfigurationSection ymlPlayerActivePortalCounts =
-                ymlData.getConfigurationSection("player-active-portal-counts");
+                dataYaml.getConfigurationSection("player-active-portal-counts");
 
         if (ymlPlayerActivePortalCounts == null) {
-            ymlData.createSection("player-active-portal-counts");
-            saveDataYaml(ymlData);
+            dataYaml.createSection("player-active-portal-counts");
             return;
         }
         String key = player.getUniqueId().toString();
@@ -475,7 +520,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             total += ymlPlayerActivePortalCounts.getInt(key);
         }
         ymlPlayerActivePortalCounts.set(key, Math.max(total, 0));
-        saveDataYaml(ymlData);
     }
 
     /**
