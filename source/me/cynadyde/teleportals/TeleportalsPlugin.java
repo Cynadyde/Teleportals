@@ -46,7 +46,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     private final Map<UUID, Long> interactCooldown = new HashMap<>();
 
     /**
-     * The plugin is enabled.
+     * The plugin enabled.
      */
     @Override
     public void onEnable() {
@@ -119,7 +119,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * The plugin is disabled.
+     * The plugin disabled.
      */
     @Override
     public void onDisable() {
@@ -128,7 +128,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Execute the plugin's commands.
+     * Executes the plugin's commands.
      */
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
@@ -188,7 +188,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Tab complete the plugin's commands.
+     * Tab completes the plugin's commands.
      */
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
@@ -219,7 +219,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Block the player from crafting a gateway prism if they lack permission.
+     * Blocks players from crafting gateway prisms if they lack permission.
      */
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onPrepareCraftItem(@NotNull PrepareItemCraftEvent event) {
@@ -242,7 +242,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Handle the activation of teleportals.
+     * Handles the activation of teleportals.
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerInteract(@NotNull PlayerInteractEvent event) {
@@ -324,7 +324,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Handle destruction of teleportals.
+     * Handles destruction of teleportals.
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(@NotNull BlockBreakEvent event) {
@@ -342,7 +342,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Handle player ender-pearling into teleportal.
+     * Handles players ender-pearling into teleportals.
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onProjectileHitEvent(@NotNull ProjectileHitEvent event) {
@@ -384,7 +384,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Get the plugin's chat tag.
+     * Reloads metadata from file, if any enabled.
      */
     public void reloadDataYaml() {
 
@@ -457,7 +457,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Get the player's active teleportal limit if they have one, else null.
+     * Gets the player's active teleportal limit if they have one, else null.
+     * If track-active-portal-counts is not enabled in the config, returns null.
      */
     public Integer getMaxActivePortalLimit(Player player) {
 
@@ -480,7 +481,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Get the player's active teleportal count.
+     * Gets the player's active teleportal count.
+     * If track-active-portal-counts is not enabled in the config, returns 0.
      */
     public int getActivePortalCount(Player player) {
 
@@ -501,6 +503,10 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         return 0;
     }
 
+    /**
+     * Augments the player's active teleportal count by the specified amount.
+     * If track-active-portal-counts is not enabled in the config, does nothing.
+     */
     public void augActivePortalCount(Player player, int amount) {
 
         if (!getConfig().getBoolean("metadata.track-active-portal-counts")) {

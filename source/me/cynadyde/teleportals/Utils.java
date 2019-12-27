@@ -36,7 +36,7 @@ public class Utils {
     public static final Random RNG = new Random();
 
     /**
-     * Translate the message's chat colors, then format the message if proper objects are given.
+     * Translates the message's chat colors, then format the message if proper objects are given.
      */
     public static @NotNull String format(@NotNull String message, Object... objects) {
 
@@ -50,7 +50,7 @@ public class Utils {
     }
 
     /**
-     * Set the display name of a given item stack.
+     * Sets the display name of a given item stack.
      */
     public static void setDisplayName(@Nullable ItemStack item, @Nullable String displayName) {
 
@@ -66,7 +66,7 @@ public class Utils {
     }
 
     /**
-     * Add the specified lines to the given item's lore.
+     * Adds the specified lines to the given item's lore.
      */
     public static void addLore(@Nullable ItemStack item, String... tag) {
 
@@ -90,7 +90,7 @@ public class Utils {
     }
 
     /**
-     * Check if the given item has the specified tag in its lore.
+     * Checks if the given item has the specified tag in its lore.
      */
     public static boolean hasLoreTag(@Nullable ItemStack item, @NotNull String tag) {
 
@@ -119,7 +119,7 @@ public class Utils {
     }
 
     /**
-     * Check if the given item has the specified data key in its lore.
+     * Checks if the given item has the specified data key in its lore.
      */
     public static boolean hasLoreData(@Nullable ItemStack item, @NotNull String key) {
 
@@ -147,6 +147,10 @@ public class Utils {
         return false;
     }
 
+    /**
+     * Gets data under the specified lore key from the given item.
+     * If it doesn't exist, an empty string is returned.
+     */
     public static @NotNull String getLoreData(@Nullable ItemStack item, @NotNull String key) {
 
         String rawKey = ChatColor.stripColor(key).trim().toLowerCase();
@@ -175,7 +179,7 @@ public class Utils {
     }
 
     /**
-     * Set the specified key in the given item's lore. If the value is null, the key will be removed.
+     * Sets the specified key in the given item's lore. If the value is null, the key will be removed.
      */
     public static void setLoreData(@Nullable ItemStack item, @NotNull String key, @Nullable String value) {
 
@@ -226,7 +230,7 @@ public class Utils {
     }
 
     /**
-     * Create a key representing the given block in a world.
+     * Creates a key representing the given block in a world.
      */
     public static @NotNull String blockToKey(@NotNull Block block) {
 
@@ -234,7 +238,7 @@ public class Utils {
     }
 
     /**
-     * Get a block in a world represented by the given key.
+     * Gets a block in a world represented by the given key.
      */
     public static @Nullable Block keyToBlock(@NotNull String key) {
 
@@ -259,14 +263,14 @@ public class Utils {
     }
 
     /**
-     * Get the yaw represented by a given block face.
+     * Gets the yaw represented by a given block face.
      */
     public static float blockFaceToYaw(BlockFace facing) {
         return (facing.ordinal() * 90f) + 180;
     }
 
     /**
-     * Create an armor stand marker with the given key at the specified block.
+     * Creates an armor stand marker with the given key at the specified block.
      */
     @SuppressWarnings("UnusedReturnValue")
     public static @NotNull ArmorStand createMarker(@NotNull Block block, @NotNull BlockFace facing,
@@ -295,7 +299,7 @@ public class Utils {
     }
 
     /**
-     * Get an armor stand marker with the given key at the specified block.
+     * Gets an armor stand marker with the given key at the specified block.
      */
     public static @Nullable ArmorStand getMarker(@NotNull Block block, @NotNull String key) {
 
@@ -319,7 +323,7 @@ public class Utils {
     }
 
     /**
-     * Remove the armor stand marker with the given key at the specified block.
+     * Removes the armor stand marker with the given key at the specified block.
      */
     public static void removeMarker(@NotNull Block block, @NotNull String key) {
 
@@ -342,7 +346,7 @@ public class Utils {
     }
 
     /**
-     * Attempt to create a specified recipe from the given config.
+     * Attempts to create a specified recipe from the given config.
      * Looks for a shapeless recipe before looking for a shaped recipe.
      */
     public static @NotNull Recipe createRecipe(

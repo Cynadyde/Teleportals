@@ -23,7 +23,7 @@ public class Teleportal {
     private Block anchor;
 
     /**
-     * Get a teleportal if the given block is part of a teleportal structure.
+     * Gets a teleportal if the given block is part of a teleportal structure.
      */
     public static @Nullable Teleportal getFromStruct(@NotNull TeleportalsPlugin plugin, @Nullable Block block) {
 
@@ -43,7 +43,7 @@ public class Teleportal {
     }
 
     /**
-     * Represent the given block as a teleportal.
+     * Represents the given block as a teleportal.
      */
     private Teleportal(@NotNull TeleportalsPlugin pluginRef, @NotNull Block structAnchor) {
 
@@ -52,7 +52,7 @@ public class Teleportal {
     }
 
     /**
-     * Check if the teleportal's structure is what it should be.
+     * Checks if the teleportal's structure is what it should be.
      */
     public boolean isStructOk() {
 
@@ -62,7 +62,7 @@ public class Teleportal {
     }
 
     /**
-     * Check if the teleportal is properly activated or not.
+     * Checks if the teleportal is properly activated or not.
      */
     @SuppressWarnings("unused")
     public boolean isActivated() {
@@ -70,7 +70,7 @@ public class Teleportal {
     }
 
     /**
-     * Get the anchor block of this teleportal's structure.
+     * Gets the anchor block of this teleportal's structure.
      */
     public @NotNull Block getAnchor() {
 
@@ -78,7 +78,7 @@ public class Teleportal {
     }
 
     /**
-     * Get the direction this teleportal is facing.
+     * Gets the direction this teleportal is facing.
      */
     public @NotNull BlockFace getFacing() {
 
@@ -102,7 +102,7 @@ public class Teleportal {
     }
 
     /**
-     * Get a gateway prism if this teleportal contains one.
+     * Gets a gateway prism if this teleportal contains one.
      */
     public @Nullable ItemStack getGatewayPrism() {
 
@@ -119,7 +119,7 @@ public class Teleportal {
     }
 
     /**
-     * Power the given gateway key with the teleportal.
+     * Powers the given gateway key with the teleportal.
      */
     public void linkGatewayPrism(ItemStack gatewayPrism) {
 
@@ -138,7 +138,7 @@ public class Teleportal {
     }
 
     /**
-     * Turn on the teleportal.
+     * Turns on the teleportal.
      * Only works if it is currently off.
      * The gateway prism must be linked to another teleportal.
      */
@@ -205,7 +205,7 @@ public class Teleportal {
     }
 
     /**
-     * Turn off the teleportal.
+     * Turns off the teleportal.
      * Works weather it is on, off, or in a broken state.
      */
     public void deactivate(boolean dropGatewayPrism) {
@@ -244,7 +244,7 @@ public class Teleportal {
     }
 
     /**
-     * Teleport the given entity through the teleportal.
+     * Teleports the given entity through the teleportal.
      */
     public void teleport(Entity entity, BlockFace face) {
 
