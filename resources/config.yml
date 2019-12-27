@@ -12,7 +12,7 @@ messages:
   no-perms-craft: "&cInsufficient permission to craft that item."
   no-perms-link: "&cInsufficient permission to link with teleportals."
   no-perms-activate: "&cInsufficient permission to activate teleportals."
-  active-portal-limit: "&cYou have reached your active teleportal limit of &6%d&c."
+  active-portal-limit: "&cYou've reached your teleportal limit of &6%d&c."
   no-perms-deactivate: "&cInsufficient permission to deactivate teleportals."
   no-perms-use: "&cInsufficient permission to use teleportals."
   not-player: "&cYou must be an in-game player to use that command."
