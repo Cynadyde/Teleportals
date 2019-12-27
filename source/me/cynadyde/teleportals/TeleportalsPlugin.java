@@ -21,8 +21,6 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
-import org.bukkit.permissions.Permission;
-import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
@@ -381,33 +379,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                         teleportal.teleport(shooter, event.getHitBlockFace());
                     }
                 }
-            }
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     */
-    @Override
-    public void reloadConfig() {
-        super.reloadConfig();
-
-//        Permission.loadPermissions(
-//                lazyPermissions,
-//                "Permission node '%s' in plugin description file for " + getDescription().getFullName() + " is invalid",
-//                getDescription().getPermissionDefault());
-
-        // FIXME can't do this, as descriptor permission list is immutable...
-
-        ConfigurationSection ymlGroups = getConfig().getConfigurationSection("groups");
-        if (ymlGroups != null) {
-            for (String group : ymlGroups.getKeys(false)) {
-
-                getDescription().getPermissions().add(new Permission(
-                        "teleportals.group." + group,
-                        "Sets the player to use the plugin's '" + group + "' permission group.",
-                        PermissionDefault.FALSE));
             }
         }
     }
