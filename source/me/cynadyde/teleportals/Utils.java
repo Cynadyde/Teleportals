@@ -270,7 +270,7 @@ public class Utils {
      */
     @SuppressWarnings("UnusedReturnValue")
     public static @NotNull ArmorStand createMarker(@NotNull Block block, @NotNull BlockFace facing,
-                                                   @NotNull String key, @Nullable ItemStack heldItem) {
+            @NotNull String key, @Nullable ItemStack heldItem) {
 
         Location loc = block.getLocation();
         loc.add(0.5, 0.1, 0.5);
