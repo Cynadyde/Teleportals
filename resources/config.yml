@@ -51,6 +51,7 @@ metadata:
   # be kept in the plugin's folder. Otherwise, no file
   # will be created and you can ignore this section.
   #   Requires a full PLUGIN reload for changes to take effect.
+  #   Minimum interval of 60 is allowed.
   autosave:
     enabled: true
     interval: 1200  # seconds
