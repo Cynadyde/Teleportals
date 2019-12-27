@@ -423,8 +423,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
      */
     public void saveDataYaml() {
 
-        getLogger().info("[DEBUG] saved data yaml!");
-
         if (anyMetadataEnabled()) {
             try {
                 dataYaml.save(dataFile);
@@ -453,13 +451,9 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         ConfigurationSection ymlMetadata = getConfig().getConfigurationSection("metadata");
         if (ymlMetadata != null) {
             for (String key : ymlMetadata.getKeys(false)) {
-                if (ymlMetadata.isBoolean(key)) {
-                    getLogger().info(Utils.format("[DEBUG] %s is %b", key, ymlMetadata.getBoolean(key)));
-
-                    if (ymlMetadata.getBoolean(key)) {
-                        result = true;
-                        break;
-                    }
+                if (ymlMetadata.isBoolean(key) && ymlMetadata.getBoolean(key)) {
+                    result = true;
+                    break;
                 }
             }
         }
