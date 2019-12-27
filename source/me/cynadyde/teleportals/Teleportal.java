@@ -125,7 +125,7 @@ public class Teleportal {
 
         ArmorStand marker = Utils.getMarker(getAnchor(), plugin.teleportalKey.toString());
         if (marker != null) {
-            return marker.getCustomName();
+            return Utils.getDisplayName(marker.getHelmet());
         }
         return null;
     }
@@ -138,8 +138,10 @@ public class Teleportal {
 
         ArmorStand marker = Utils.getMarker(getAnchor(), plugin.teleportalKey.toString());
         if (marker != null) {
-            marker.setCustomName(name);
-            marker.setCustomNameVisible(false);
+
+            ItemStack helmet = new ItemStack(Material.GOLDEN_HELMET);
+            Utils.setDisplayName(helmet, name);
+            marker.setHelmet(helmet);
         }
     }
 

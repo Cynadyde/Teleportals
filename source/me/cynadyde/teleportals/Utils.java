@@ -50,6 +50,24 @@ public class Utils {
     }
 
     /**
+     * Gets the display name of a given item stack.
+     * Returns an empty string if one does not exist.
+     */
+    public static @Nullable String getDisplayName(@Nullable ItemStack item) {
+        if (item == null) {
+            return null;
+        }
+        ItemMeta itemMeta = item.getItemMeta();
+        if (itemMeta == null) {
+            return null;
+        }
+        if (itemMeta.hasDisplayName()) {
+            return itemMeta.getDisplayName();
+        }
+        return null;
+    }
+
+    /**
      * Sets the display name of a given item stack.
      */
     public static void setDisplayName(@Nullable ItemStack item, @Nullable String displayName) {
