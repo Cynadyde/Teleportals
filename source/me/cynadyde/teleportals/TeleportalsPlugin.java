@@ -304,7 +304,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
                             // make sure any limits for this player haven't been reached...
                             Integer limit = getMaxActivePortalLimit(event.getPlayer());
-                            if (limit != null && (getActivePortalCount(event.getPlayer()) >= limit)) {
+                            if (limit != null && (getActivePortalCount(event.getPlayer().getUniqueId()) >= limit)) {
                                 sendMsg(event.getPlayer(), "active-portal-limit", limit);
                                 return;
                             }
@@ -312,12 +312,15 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                             // activate the teleportal...
                             if (teleportal.activate(usedItem)) {
 
-                                augActivePortalCount(event.getPlayer(), 1);
+                                augActivePortalCount(event.getPlayer().getUniqueId(), 1);
 
                                 // consume the gateway prism...
                                 if (event.getPlayer().getGameMode() != GameMode.CREATIVE) {
                                     usedItem.setAmount(usedItem.getAmount() - 1);
                                 }
+
+                                // give the teleportal's marker its creator's uuid...
+                                teleportal.setPortalName(event.getPlayer().getUniqueId().toString());
                             }
                         }
                     }
@@ -340,7 +343,11 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             // deactivate the teleportal...
             teleportal.deactivate(getConfig().getBoolean("gateway-prism.reusable", true));
 
-            augActivePortalCount(event.getPlayer(), -1);
+            // decrease the active portal count for the teleportal's creator...
+            String name = teleportal.getPortalName();
+            if (name != null) {
+                augActivePortalCount(UUID.fromString(name), -1);
+            }
         }
     }
 
@@ -496,7 +503,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
      * Gets the player's active teleportal count.
      * If track-active-portal-counts is not enabled in the config, returns 0.
      */
-    public int getActivePortalCount(Player player) {
+    public int getActivePortalCount(UUID uuid) {
 
         if (!getConfig().getBoolean("metadata.track-active-portal-counts")) {
             return 0;
@@ -508,7 +515,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             dataYaml.createSection("player-active-portal-counts");
             return 0;
         }
-        String key = player.getUniqueId().toString();
+        String key = uuid.toString();
         if (ymlPlayerActivePortalCounts.contains(key)) {
             return ymlPlayerActivePortalCounts.getInt(key);
         }
@@ -519,7 +526,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
      * Augments the player's active teleportal count by the specified amount.
      * If track-active-portal-counts is not enabled in the config, does nothing.
      */
-    public void augActivePortalCount(Player player, int amount) {
+    public void augActivePortalCount(UUID uuid, int amount) {
 
         if (!getConfig().getBoolean("metadata.track-active-portal-counts")) {
             return;
@@ -531,7 +538,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             dataYaml.createSection("player-active-portal-counts");
             return;
         }
-        String key = player.getUniqueId().toString();
+        String key = uuid.toString();
         int total = amount;
 
         if (ymlPlayerActivePortalCounts.contains(key)) {

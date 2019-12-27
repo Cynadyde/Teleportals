@@ -119,6 +119,31 @@ public class Teleportal {
     }
 
     /**
+     * Gets the name of this teleportal if it has one.
+     */
+    public @Nullable String getPortalName() {
+
+        ArmorStand marker = Utils.getMarker(getAnchor(), plugin.teleportalKey.toString());
+        if (marker != null) {
+            return marker.getCustomName();
+        }
+        return null;
+    }
+
+    /**
+     * Sets the name of this teleportal.
+     * Removes its name if null.
+     */
+    public void setPortalName(@Nullable String name) {
+
+        ArmorStand marker = Utils.getMarker(getAnchor(), plugin.teleportalKey.toString());
+        if (marker != null) {
+            marker.setCustomName(name);
+            marker.setCustomNameVisible(false);
+        }
+    }
+
+    /**
      * Powers the given gateway key with the teleportal.
      */
     public void linkGatewayPrism(ItemStack gatewayPrism) {
