@@ -40,9 +40,9 @@ groups:
   limitedplayer:
     max-active-portals: 10
 
-# If you never use 'max-active-portals' on
-#   your server, you may set this to false.
-track-active-portal-counts: true
+# If you wish to use 'max-active-portals' on
+#   your server, you must set this to true
+track-active-portal-counts: false
 
 # Customize the plugin's gateway prism item.
 # 'reusable' means the gateway prism is dropped when the portal is broken.
