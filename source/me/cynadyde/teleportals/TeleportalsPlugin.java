@@ -392,6 +392,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
         if (!anyMetadataEnabled()) {
             dataYaml = new YamlConfiguration();
+            return;
         }
 
         // else, load meta data from file...
