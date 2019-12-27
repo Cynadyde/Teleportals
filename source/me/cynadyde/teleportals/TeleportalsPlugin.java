@@ -122,7 +122,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
      */
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
-                             @NotNull String alias, @NotNull String[] args) {
+            @NotNull String alias, @NotNull String[] args) {
 
         // the main plugin command...
         if (alias.equalsIgnoreCase("teleportals")) {
@@ -182,7 +182,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
      */
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
-                                                @NotNull String alias, @NotNull String[] args) {
+            @NotNull String alias, @NotNull String[] args) {
 
         List<String> results = new ArrayList<>();
 
@@ -325,7 +325,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         if (teleportal != null) {
 
             // deactivate the teleportal...
-            teleportal.deactivate();
+            teleportal.deactivate(getConfig().getBoolean("gateway-prism.reusable", true));
 
             augActivePortalCount(event.getPlayer(), -1);
         }

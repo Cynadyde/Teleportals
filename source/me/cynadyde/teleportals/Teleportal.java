@@ -31,7 +31,7 @@ public class Teleportal {
             return null;
         }
 
-        for (BlockFace rel : new BlockFace[]{ BlockFace.SELF, BlockFace.UP, BlockFace.DOWN }) {
+        for (BlockFace rel : new BlockFace[] { BlockFace.SELF, BlockFace.UP, BlockFace.DOWN }) {
 
             Teleportal teleportal = new Teleportal(plugin, block.getRelative(rel));
 
@@ -208,7 +208,7 @@ public class Teleportal {
      * Turn off the teleportal.
      * Works weather it is on, off, or in a broken state.
      */
-    public void deactivate() {
+    public void deactivate(boolean dropGatewayPrism) {
 
         Location loc = anchor.getLocation().add(0.5, 0.5, 0.5);
         BlockFace facing = getFacing();
@@ -238,7 +238,7 @@ public class Teleportal {
         }
 
         // drop the teleportal's gateway prism...
-        if (gatewayPrism != null) {
+        if (dropGatewayPrism && gatewayPrism != null) {
             anchor.getWorld().dropItemNaturally(loc, gatewayPrism);
         }
     }
