@@ -28,7 +28,7 @@ public class Utils {
     /**
      * Block faces in the four cardinal directions.
      */
-    public static final BlockFace[] FACES = { BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST };
+    static final BlockFace[] FACES = { BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST };
 
     /**
      * Java's random number generator.
