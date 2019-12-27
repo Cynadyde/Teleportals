@@ -125,6 +125,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     public void onDisable() {
 
         interactCooldown.clear();
+        saveDataYaml();
     }
 
     /**
