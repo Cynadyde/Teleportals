@@ -61,8 +61,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         reloadDataYaml();
 
         // set up the auto-saving feature...
-        int interval = Math.max(60, getConfig().getInt("autosave.interval"));
-        getServer().getScheduler().scheduleSyncRepeatingTask(this, this::saveDataYaml, 0L, interval);
+        int interval = Math.max(60, getConfig().getInt("autosave.interval")) * 20;  // convert seconds to ticks
+        getServer().getScheduler().scheduleSyncRepeatingTask(this, this::saveDataYaml, interval, interval);
 
         // create and add the plugin recipes...
         Recipe recipe;
@@ -420,6 +420,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
      */
     public void saveDataYaml() {
 
+        getLogger().info("[DEBUG] saved data yaml!");
+
         if (anyMetadataEnabled()) {
             try {
                 dataYaml.save(dataFile);
@@ -437,9 +439,10 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     public boolean anyMetadataEnabled() {
 
         boolean result = false;
-        ConfigurationSection ymlMetadata = dataYaml.getConfigurationSection("metadata");
+        ConfigurationSection ymlMetadata = getConfig().getConfigurationSection("metadata");
         if (ymlMetadata != null) {
             for (String key : ymlMetadata.getKeys(false)) {
+                getLogger().info(Utils.format("[DEBUG] %s is %b", key, ymlMetadata.getBoolean(key)));
                 if (ymlMetadata.getBoolean(key)) {
                     result = true;
                     break;
