@@ -5,6 +5,8 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.command.*;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.EnderPearl;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -24,6 +26,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.*;
 
 /**
@@ -284,8 +289,17 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                                 return;
                             }
 
+                            // make sure any limits for this player haven't been reached...
+                            Integer limit = getMaxActivePortalLimit(event.getPlayer());
+                            if (limit != null && (getActivePortalCount(event.getPlayer()) >= limit)) {
+                                sendMsg(event.getPlayer(), "active-portal-limit", limit);
+                                return;
+                            }
+
                             // activate the teleportal...
                             if (teleportal.activate(usedItem)) {
+
+                                augActivePortalCount(event.getPlayer(), 1);
 
                                 // consume the gateway prism...
                                 if (event.getPlayer().getGameMode() != GameMode.CREATIVE) {
@@ -312,6 +326,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
             // deactivate the teleportal...
             teleportal.deactivate();
+
+            augActivePortalCount(event.getPlayer(), -1);
         }
     }
 
@@ -363,6 +379,89 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     public @NotNull String getTag() {
         String tag = getConfig().getString("messages.tag");
         return (tag == null) ? "" : Utils.format(tag);
+    }
+
+    public YamlConfiguration getDataYaml() {
+
+        File dataFile = new File(getDataFolder(), "data.yml");
+        if (!dataFile.exists()) {
+            try {
+                Files.createFile(dataFile.toPath());
+            }
+            catch (IOException ex) {
+                getLogger().severe("Unable to create the data.yml file: " + ex.getMessage());
+                getLogger().severe("Plugin will have reduced functionality.");
+            }
+        }
+        return YamlConfiguration.loadConfiguration(dataFile);
+    }
+
+    /**
+     * Get the player's active teleportal limit if they have one, else null.
+     */
+    public Integer getMaxActivePortalLimit(Player player) {
+
+        if (!getConfig().getBoolean("track-active-portal-counts", false)) {
+            return null;
+        }
+        ConfigurationSection ymlGroups = getConfig().getConfigurationSection("group");
+        if (ymlGroups != null) {
+
+            Set<String> groups = ymlGroups.getKeys(false);
+            for (String group : groups) {
+
+                if (player.hasPermission("teleportals.group." + group)) {
+                    String key = group + ".max-active-portals";
+                    return ymlGroups.contains(key) ? ymlGroups.getInt(key) : null;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get the player's active teleportal count.
+     */
+    public int getActivePortalCount(Player player) {
+
+        if (!getConfig().getBoolean("track-active-portal-counts", false)) {
+            return 0;
+        }
+        YamlConfiguration ymlData = getDataYaml();
+        ConfigurationSection ymlPlayerActivePortalCounts =
+                ymlData.getConfigurationSection("player-active-portal-counts");
+
+        if (ymlPlayerActivePortalCounts == null) {
+            ymlData.createSection("player-active-portal-counts");
+            return 0;
+        }
+        String key = player.getUniqueId().toString();
+        if (ymlPlayerActivePortalCounts.contains(key)) {
+            return ymlPlayerActivePortalCounts.getInt(key);
+        }
+        return 0;
+    }
+
+    public void augActivePortalCount(Player player, int amount) {
+
+        if (!getConfig().getBoolean("track-active-portal-counts", false)) {
+            return;
+        }
+        YamlConfiguration ymlData = getDataYaml();
+        ConfigurationSection ymlPlayerActivePortalCounts =
+                ymlData.getConfigurationSection("player-active-portal-counts");
+
+        if (ymlPlayerActivePortalCounts == null) {
+            ymlData.createSection("player-active-portal-counts");
+            return;
+        }
+        String key = player.getUniqueId().toString();
+        int total = amount;
+
+        if (ymlPlayerActivePortalCounts.contains(key)) {
+            total += ymlPlayerActivePortalCounts.getInt(key);
+        }
+        ymlPlayerActivePortalCounts.set(key, Math.max(total, 0));
     }
 
     /**

@@ -12,6 +12,7 @@ messages:
   no-perms-craft: "&cInsufficient permission to craft that item."
   no-perms-link: "&cInsufficient permission to link with teleportals."
   no-perms-activate: "&cInsufficient permission to activate teleportals."
+  active-portal-limit: "&cYou have reached your active teleportal limit of &6%d&c."
   no-perms-deactivate: "&cInsufficient permission to deactivate teleportals."
   no-perms-use: "&cInsufficient permission to use teleportals."
   not-player: "&cYou must be an in-game player to use that command."
@@ -31,12 +32,26 @@ messages:
     &c/teleportals spawnitem &7- give yourself a gateway prism.
     &c/teleportals reloadconfig &7- reload the plugin's configuration file.
 
+# Create permission groups for the plugin.
+# Specific limits can be applied to players who have
+#   the permission node 'teleportals.players.group.<name>',
+#   where <name> is one of the groups defined below.
+groups:
+  limitedplayer:
+    max-active-portals: 10
+
+# If you never use 'max-active-portals' on
+#   your server, you may set this to false.
+track-active-portal-counts: true
+
 # Customize the plugin's gateway prism item.
+# 'reusable' means the gateway prism is dropped when the portal is broken.
 # You may use 'recipe-shapeless' instead of 'recipe-shaped'.
-# Requires a full plugin reload for changes to take effect.
-# Does not affect existing items in the world.
-# Existing items will still work.
+#   Requires a full PLUGIN reload for changes to take effect.
+#   Does not affect existing items in the world.
+#   Existing items will still work.
 gateway-prism:
+  reusable: true
   amount: 1
   material: GOLDEN_SWORD
   display: "&bGateway Prism"
