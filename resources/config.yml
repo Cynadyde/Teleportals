@@ -34,7 +34,7 @@ messages:
 
 # Create permission groups for the plugin.
 # Specific limits can be applied to players who have
-#   the permission node 'teleportals.players.group.<name>',
+#   the permission node 'teleportals.group.<name>',
 #   where <name> is one of the groups defined below.
 groups:
   limitedplayer:
