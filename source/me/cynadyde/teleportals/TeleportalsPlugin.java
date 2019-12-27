@@ -40,6 +40,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     public final NamespacedKey teleportalKey = new NamespacedKey(this, "teleportal");
     public final NamespacedKey gatewayPrismKey = new NamespacedKey(this, "gateway_prism");
 
+    private final File dataFile = new File(getDataFolder(), "data.yml");
+
     private final Map<UUID, Long> interactCooldown = new HashMap<>();
 
     /**
@@ -383,7 +385,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
     public YamlConfiguration getDataYaml() {
 
-        File dataFile = new File(getDataFolder(), "data.yml");
         if (!dataFile.exists()) {
             try {
                 Files.createFile(dataFile.toPath());
@@ -394,6 +395,17 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             }
         }
         return YamlConfiguration.loadConfiguration(dataFile);
+    }
+
+    public void saveDataYaml(YamlConfiguration ymlData) {
+
+        try {
+            ymlData.save(dataFile);
+        }
+        catch (IOException ex) {
+            getLogger().severe("Unable to save to the data.yml file: " + ex.getMessage());
+            getLogger().severe("Plugin will have reduced functionality.");
+        }
     }
 
     /**
@@ -453,6 +465,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
 
         if (ymlPlayerActivePortalCounts == null) {
             ymlData.createSection("player-active-portal-counts");
+            saveDataYaml(ymlData);
             return;
         }
         String key = player.getUniqueId().toString();
@@ -462,6 +475,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             total += ymlPlayerActivePortalCounts.getInt(key);
         }
         ymlPlayerActivePortalCounts.set(key, Math.max(total, 0));
+        saveDataYaml(ymlData);
     }
 
     /**
