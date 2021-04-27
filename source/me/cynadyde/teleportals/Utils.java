@@ -1,6 +1,11 @@
 package me.cynadyde.teleportals;
 
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.ConfigurationSection;
@@ -17,26 +22,33 @@ import org.bukkit.util.EulerAngle;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.IllegalFormatException;
+import java.util.List;
+import java.util.Objects;
+import java.util.Random;
 
 /**
  * Utilities for the Teleportals plugin.
  */
-@SuppressWarnings({ "WeakerAccess", "DuplicatedCode" })
 public class Utils {
 
-    /**
-     * Block faces in the four cardinal directions.
-     */
-    static final BlockFace[] FACES = { BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST };
+    private Utils() {
+    }
 
     /**
-     * Java's random number generator.
+     * The four cardinal directions: north, east, south, and west.
+     */
+    static final BlockFace[] FACES = {BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST};
+
+    /**
+     * A random number generator.
      */
     public static final Random RNG = new Random();
 
     /**
-     * Translates the message's chat colors, then format the message if proper objects are given.
+     * Translate the message's chat colors then format the message, if proper objects are given.
      */
     public static @NotNull String format(@NotNull String message, Object... objects) {
 
@@ -50,8 +62,7 @@ public class Utils {
     }
 
     /**
-     * Gets the display name of a given item stack.
-     * Returns an empty string if one does not exist.
+     * Get the display name of a given item stack or an empty string if one does not exist.
      */
     public static @Nullable String getDisplayName(@Nullable ItemStack item) {
         if (item == null) {
@@ -68,7 +79,7 @@ public class Utils {
     }
 
     /**
-     * Sets the display name of a given item stack.
+     * Set the display name of a given item stack.
      */
     public static void setDisplayName(@Nullable ItemStack item, @Nullable String displayName) {
 
@@ -84,7 +95,7 @@ public class Utils {
     }
 
     /**
-     * Adds the specified lines to the given item's lore.
+     * Add the specified lines to the given item's lore.
      */
     public static void addLore(@Nullable ItemStack item, String... tag) {
 
@@ -108,7 +119,7 @@ public class Utils {
     }
 
     /**
-     * Checks if the given item has the specified tag in its lore.
+     * Check if the given item has the specified tag in its lore.
      */
     public static boolean hasLoreTag(@Nullable ItemStack item, @NotNull String tag) {
 
@@ -137,7 +148,7 @@ public class Utils {
     }
 
     /**
-     * Checks if the given item has the specified data key in its lore.
+     * Check if the given item has the specified data key in its lore.
      */
     public static boolean hasLoreData(@Nullable ItemStack item, @NotNull String key) {
 
@@ -166,7 +177,7 @@ public class Utils {
     }
 
     /**
-     * Gets data under the specified lore key from the given item.
+     * Get the data under the specified lore key from the given item.
      * If it doesn't exist, an empty string is returned.
      */
     public static @NotNull String getLoreData(@Nullable ItemStack item, @NotNull String key) {
@@ -197,7 +208,7 @@ public class Utils {
     }
 
     /**
-     * Sets the specified key in the given item's lore. If the value is null, the key will be removed.
+     * Set the specified key in the given item's lore. If the value is null, the key will be removed.
      */
     public static void setLoreData(@Nullable ItemStack item, @NotNull String key, @Nullable String value) {
 
@@ -248,7 +259,7 @@ public class Utils {
     }
 
     /**
-     * Creates a key representing the given block in a world.
+     * Create a key representing the given block in a world.
      */
     public static @NotNull String blockToKey(@NotNull Block block) {
 
@@ -256,7 +267,7 @@ public class Utils {
     }
 
     /**
-     * Gets a block in a world represented by the given key.
+     * Get a block in a world represented by the given key.
      */
     public static @Nullable Block keyToBlock(@NotNull String key) {
 
@@ -281,18 +292,23 @@ public class Utils {
     }
 
     /**
-     * Gets the yaw represented by a given block face.
+     * Get the yaw represented by a given block face.
      */
     public static float blockFaceToYaw(BlockFace facing) {
         return (facing.ordinal() * 90f) + 180;
     }
 
     /**
-     * Creates an armor stand marker with the given key at the specified block.
+     * Get the cardinal direction represented by a yaw.
      */
-    @SuppressWarnings("UnusedReturnValue")
-    public static @NotNull ArmorStand createMarker(@NotNull Block block, @NotNull BlockFace facing,
-            @NotNull String key, @Nullable ItemStack heldItem) {
+    public static BlockFace yawToBlockFace(float yaw) {
+        return FACES[Math.floorMod((int) Math.floor((yaw + 180 + 45) / 90f), 4)];
+    }
+
+    /**
+     * Create an armor stand marker with the given key at the specified block.
+     */
+    public static void createMarker(@NotNull Block block, @NotNull BlockFace facing, @NotNull String key, @Nullable ItemStack heldItem) {
 
         Location loc = block.getLocation();
         loc.add(0.5, 0.1, 0.5);
@@ -311,18 +327,15 @@ public class Utils {
         marker.setArms(true);
 
         marker.setRightArmPose(new EulerAngle(-Math.PI / 2, 0, 0));
-        marker.setItemInHand(heldItem);
-
-        return marker;
+        Objects.requireNonNull(marker.getEquipment()).setItemInMainHand(heldItem);
     }
 
     /**
-     * Gets an armor stand marker with the given key at the specified block.
+     * Get an armor stand marker with the given key at the specified block.
      */
     public static @Nullable ArmorStand getMarker(@NotNull Block block, @NotNull String key) {
 
         Location origin = block.getLocation().add(0.5, 0.5, 0.5);
-
         for (Entity entity : block.getWorld().getNearbyEntities(origin, 0.5, 0.5, 0.5)) {
 
             if (entity.getType() == EntityType.ARMOR_STAND) {
@@ -331,7 +344,6 @@ public class Utils {
 
                 if (name != null) {
                     if (ChatColor.stripColor(name).equalsIgnoreCase(key)) {
-
                         return armorStand;
                     }
                 }
@@ -341,12 +353,11 @@ public class Utils {
     }
 
     /**
-     * Removes the armor stand marker with the given key at the specified block.
+     * Remove the armor stand marker with the given key at the specified block.
      */
     public static void removeMarker(@NotNull Block block, @NotNull String key) {
 
         Location origin = block.getLocation().add(0.5, 0.5, 0.5);
-
         for (Entity entity : block.getWorld().getNearbyEntities(origin, 0.5, 0.5, 0.5)) {
 
             if (entity.getType() == EntityType.ARMOR_STAND) {
@@ -355,7 +366,6 @@ public class Utils {
 
                 if (name != null) {
                     if (ChatColor.stripColor(name).equalsIgnoreCase(key)) {
-
                         armorStand.remove();
                     }
                 }
@@ -364,19 +374,11 @@ public class Utils {
     }
 
     /**
-     * Attempts to create a specified recipe from the given config.
+     * Attempt to create a specified recipe from the given config.
      * Looks for a shapeless recipe before looking for a shaped recipe.
      */
-    public static @NotNull Recipe createRecipe(
+    public static @NotNull Recipe createRecipe(@NotNull NamespacedKey key, @NotNull ItemStack result, @NotNull FileConfiguration config, @NotNull String sectionName) throws IllegalArgumentException {
 
-            @NotNull NamespacedKey key,
-            @NotNull ItemStack result,
-            @NotNull FileConfiguration config,
-            @NotNull String sectionName
-
-    ) throws IllegalArgumentException {
-
-        // make sure the specified config section exists...
         ConfigurationSection section = config.getConfigurationSection(sectionName);
         if (section == null) {
             throw new IllegalArgumentException(String.format(
@@ -384,25 +386,19 @@ public class Utils {
                     sectionName
             ));
         }
-
         Recipe recipe;
 
-        // if a shapeless recipe was defined...
         if (section.get("recipe-shapeless") != null) {
-
             List<String> ingredients = section.getStringList("recipe-shapeless");
 
-            // make sure the ingredients list is not empty...
             if (ingredients.isEmpty()) {
                 throw new IllegalArgumentException(String.format(
                         "The ingredients list at '%s.recipe-shapeless' is empty.",
                         sectionName
                 ));
             }
-
             recipe = new ShapelessRecipe(key, result);
 
-            // for each material name listed in the config...
             for (String matName : ingredients) {
 
                 // try to add the material enum to the recipe...
@@ -419,12 +415,10 @@ public class Utils {
                 ((ShapelessRecipe) recipe).addIngredient(mat);  // uncaught IllegalArgumentException
             }
         }
-        // else, if a shaped recipe was defined...
         else if (section.isConfigurationSection("recipe-shaped")) {
 
             ConfigurationSection shapedSection = section.getConfigurationSection("recipe-shaped");
             assert shapedSection != null;
-
             recipe = new ShapedRecipe(key, result);
 
             // get and set the recipe's shape from the config...
@@ -439,14 +433,12 @@ public class Utils {
 
             // get the ingredients mapping from the config...
             ConfigurationSection mapSection = shapedSection.getConfigurationSection("map");
-
             if (mapSection == null || mapSection.getKeys(false).isEmpty()) {
                 throw new IllegalArgumentException(String.format(
                         "The ingredients mapping at '%s.map' is missing or empty.",
                         shapedSection
                 ));
             }
-            // for each key-value defined in the mapping...
             for (String mapKey : mapSection.getKeys(false)) {
 
                 // make sure the key is 1 char...
@@ -472,9 +464,7 @@ public class Utils {
                     ((ShapedRecipe) recipe).setIngredient(mapKey.charAt(0), mat);
                 }
                 catch (IllegalArgumentException ignored) {
-                    // if the symbol does not appear in the shape, just ignore
-                    // it and continue-- the config's copied defaults will most
-                    // likely set this off otherwise.
+                    // if the symbol does not appear in the shape, just ignore it
                 }
             }
         }
@@ -485,7 +475,6 @@ public class Utils {
                     sectionName
             ));
         }
-
         return recipe;
     }
 }

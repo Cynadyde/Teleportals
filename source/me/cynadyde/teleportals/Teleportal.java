@@ -1,7 +1,11 @@
 package me.cynadyde.teleportals;
 
 import org.apache.commons.lang.ArrayUtils;
-import org.bukkit.*;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.EndGateway;
@@ -13,27 +17,27 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Objects;
+
 /**
- * Represents a teleportal structure in the world.
+ * A representative of a teleportal structure in the a world.
  */
-@SuppressWarnings("WeakerAccess")
 public class Teleportal {
 
-    private TeleportalsPlugin plugin;
-    private Block anchor;
+    final private Block anchor;
 
     /**
-     * Gets a teleportal if the given block is part of a teleportal structure.
+     * Get a teleportal if the given block is part of a teleportal structure, else null.
      */
-    public static @Nullable Teleportal getFromStruct(@NotNull TeleportalsPlugin plugin, @Nullable Block block) {
+    public static @Nullable Teleportal getFromStruct(@Nullable Block block) {
 
         if (block == null) {
             return null;
         }
 
-        for (BlockFace rel : new BlockFace[] { BlockFace.SELF, BlockFace.UP, BlockFace.DOWN }) {
+        for (BlockFace rel : new BlockFace[]{BlockFace.SELF, BlockFace.UP, BlockFace.DOWN}) {
 
-            Teleportal teleportal = new Teleportal(plugin, block.getRelative(rel));
+            Teleportal teleportal = new Teleportal(block.getRelative(rel));
 
             if (teleportal.isStructOk()) {
                 return teleportal;
@@ -43,42 +47,37 @@ public class Teleportal {
     }
 
     /**
-     * Represents the given block as a teleportal.
+     * Represent the given block as a teleportal.
      */
-    private Teleportal(@NotNull TeleportalsPlugin pluginRef, @NotNull Block structAnchor) {
-
-        plugin = pluginRef;
+    private Teleportal(@NotNull Block structAnchor) {
         anchor = structAnchor;
     }
 
     /**
-     * Checks if the teleportal's structure is what it should be.
+     * Check if the teleportal's structure is what it should be.
      */
     public boolean isStructOk() {
-
         return (anchor.getType() == Material.ENDER_CHEST || anchor.getType() == Material.END_GATEWAY)
                 && anchor.getRelative(BlockFace.DOWN).getType() == Material.OBSIDIAN
                 && anchor.getRelative(BlockFace.UP).getType() == Material.OBSIDIAN;
     }
 
     /**
-     * Checks if the teleportal is properly activated or not.
+     * Check if the teleportal is properly activated or not.
      */
-    @SuppressWarnings("unused")
     public boolean isActivated() {
         return anchor.getType() == Material.END_GATEWAY && getGatewayPrism() != null;
     }
 
     /**
-     * Gets the anchor block of this teleportal's structure.
+     * Get the anchor block of this teleportal's structure.
      */
     public @NotNull Block getAnchor() {
-
         return anchor;
     }
 
     /**
-     * Gets the direction this teleportal is facing.
+     * Get the cardinal direction this teleportal is facing.
      */
     public @NotNull BlockFace getFacing() {
 
@@ -88,7 +87,7 @@ public class Teleportal {
             result = ((Directional) anchor.getBlockData()).getFacing();
         }
         else {
-            ArmorStand marker = Utils.getMarker(anchor, plugin.teleportalKey.toString());
+            ArmorStand marker = Utils.getMarker(anchor, TeleportalsPlugin.getKey("teleportal").toString());
 
             if (marker != null) {
                 result = marker.getFacing();
@@ -102,16 +101,16 @@ public class Teleportal {
     }
 
     /**
-     * Gets a gateway prism if this teleportal contains one.
+     * Get the gateway prism contained in this teleportal if it has one, else null.
      */
     public @Nullable ItemStack getGatewayPrism() {
 
-        ArmorStand marker = Utils.getMarker(anchor, plugin.teleportalKey.toString());
+        ArmorStand marker = Utils.getMarker(anchor, TeleportalsPlugin.getKey("teleportal").toString());
 
         if (marker != null) {
-            ItemStack item = marker.getItemInHand();
+            ItemStack item = Objects.requireNonNull(marker.getEquipment()).getItemInMainHand();
 
-            if (Utils.hasLoreTag(item, plugin.gatewayPrismKey.toString())) {
+            if (Utils.hasLoreTag(item, TeleportalsPlugin.getKey("gateway_prism").toString())) {
                 return item;
             }
         }
@@ -119,45 +118,39 @@ public class Teleportal {
     }
 
     /**
-     * Gets the name of this teleportal if it has one.
+     * Get the name of this teleportal if it has one, else null.
      */
     public @Nullable String getPortalName() {
 
-        ArmorStand marker = Utils.getMarker(getAnchor(), plugin.teleportalKey.toString());
+        ArmorStand marker = Utils.getMarker(getAnchor(), TeleportalsPlugin.getKey("teleportal").toString());
         if (marker != null) {
-            return Utils.getDisplayName(marker.getHelmet());
+            return Utils.getDisplayName(Objects.requireNonNull(marker.getEquipment()).getHelmet());
         }
         return null;
     }
 
     /**
-     * Sets the name of this teleportal.
-     * Removes its name if null.
+     * Set the name of this teleportal or remove its name if null.
      */
     public void setPortalName(@Nullable String name) {
 
-        ArmorStand marker = Utils.getMarker(getAnchor(), plugin.teleportalKey.toString());
+        ArmorStand marker = Utils.getMarker(getAnchor(), TeleportalsPlugin.getKey("teleportal").toString());
         if (marker != null) {
 
             ItemStack helmet = new ItemStack(Material.GOLDEN_HELMET);
             Utils.setDisplayName(helmet, name);
-            marker.setHelmet(helmet);
+            Objects.requireNonNull(marker.getEquipment()).setHelmet(helmet);
         }
     }
 
     /**
-     * Powers the given gateway key with the teleportal.
+     * Link the given gateway prism to this teleportal.
      */
     public void linkGatewayPrism(ItemStack gatewayPrism) {
 
-        // if the given item actually is a gateway prism...
-        if (Utils.hasLoreTag(gatewayPrism, plugin.gatewayPrismKey.toString())) {
-
-            // set the link on the gateway prism...
-            //noinspection SpellCheckingInspection
+        if (Utils.hasLoreTag(gatewayPrism, TeleportalsPlugin.getKey("gateway_prism").toString())) {
             Utils.setLoreData(gatewayPrism, Utils.format("&6&klink"), Utils.blockToKey(anchor));
 
-            // spawn particle effects and play sfx...
             Location loc = anchor.getLocation().add(0.5, 0.5, 0.5);
             anchor.getWorld().spawnParticle(Particle.DRAGON_BREATH, loc, 100, 0.25, 0.25, 0.25, 0.075);
             anchor.getWorld().playSound(loc, Sound.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.BLOCKS, 1.5f, 0.5f);
@@ -165,8 +158,7 @@ public class Teleportal {
     }
 
     /**
-     * Turns on the teleportal.
-     * Only works if it is currently off.
+     * Turn on the teleportal. This only works if it is currently off.
      * The gateway prism must be linked to another teleportal.
      */
     public boolean activate(ItemStack gatewayPrism) {
@@ -176,54 +168,38 @@ public class Teleportal {
 
         activating:
         {
-
-            // make sure the given item is a linked gateway prism...
-            if (!Utils.hasLoreTag(gatewayPrism, plugin.gatewayPrismKey.toString())) {
+            if (!Utils.hasLoreTag(gatewayPrism, TeleportalsPlugin.getKey("gateway_prism").toString())) {
                 break activating;
             }
             if (!Utils.hasLoreData(gatewayPrism, "link")) {
                 break activating;
             }
-
-            // make this the gateway prism is linked to a different teleportal...
             if (Utils.getLoreData(gatewayPrism, "link").equalsIgnoreCase(Utils.blockToKey(anchor))) {
                 break activating;
             }
-
-            // make sure this teleportal isn't already activated...
             if (anchor.getType() == Material.END_GATEWAY) {
                 break activating;
             }
-            if (Utils.getMarker(anchor, plugin.teleportalKey.toString()) != null) {
+            if (Utils.getMarker(anchor, TeleportalsPlugin.getKey("teleportal").toString()) != null) {
                 break activating;
             }
-
-            // create a new marker for the teleportal...
-            Utils.createMarker(anchor, getFacing(), plugin.teleportalKey.toString(), gatewayPrism);
-
-            // set the anchor block to an end gateway...
+            Utils.createMarker(anchor, getFacing(), TeleportalsPlugin.getKey("teleportal").toString(), gatewayPrism);
             anchor.setType(Material.END_GATEWAY);
 
-            // disable the end gateway beam...
             if (anchor.getState() instanceof EndGateway) {
                 EndGateway endGateway = (EndGateway) anchor.getState();
                 endGateway.setAge(Long.MIN_VALUE); // approx. 292 million years
                 endGateway.update(true);
             }
-
-            // spawn particle effects and play sfx...
             anchor.getWorld().spawnParticle(Particle.END_ROD, loc, 200, 0.1, 0.1, 0.1, 0.10);
             anchor.getWorld().spawnParticle(Particle.DRAGON_BREATH, loc, 100, 0.25, 0.25, 0.25, 0.075);
             anchor.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, loc, 50, 0.1, 0.1, 0.1, 0.025);
             anchor.getWorld().playSound(loc, Sound.BLOCK_ENCHANTMENT_TABLE_USE, SoundCategory.BLOCKS, 1.5f, 0.5f);
             anchor.getWorld().playSound(loc, Sound.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, 1.5f, 1.5f);
             anchor.getWorld().playSound(loc, Sound.BLOCK_PORTAL_TRIGGER, SoundCategory.BLOCKS, 1.5f, 0.5f);
-
             success = true;
         }
         if (!success) {
-
-            // spawn particle effects and play sfx upon failure...
             float randomPitch = 0.90f + (Utils.RNG.nextFloat() * 0.20f);
             anchor.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, loc, 50, 0.1, 0.1, 0.1, 0.025);
             anchor.getWorld().playSound(loc, Sound.BLOCK_REDSTONE_TORCH_BURNOUT, 1.0f, randomPitch);
@@ -232,8 +208,7 @@ public class Teleportal {
     }
 
     /**
-     * Turns off the teleportal.
-     * Works weather it is on, off, or in a broken state.
+     * Turn off the teleportal. This works weather it is on, off, or in a broken state.
      */
     public void deactivate(boolean dropGatewayPrism) {
 
@@ -241,70 +216,58 @@ public class Teleportal {
         BlockFace facing = getFacing();
         ItemStack gatewayPrism = getGatewayPrism();
 
-        // remove the teleportal's marker...
-        Utils.removeMarker(anchor, plugin.teleportalKey.toString());
+        Utils.removeMarker(anchor, TeleportalsPlugin.getKey("teleportal").toString());
 
-        // spawn particle effects and play sfx if the portal is being changed...
         if (anchor.getType() != Material.ENDER_CHEST) {
-
             anchor.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, loc, 5, 0.1, 0.1, 0.05);
             anchor.getWorld().spawnParticle(Particle.DRAGON_BREATH, loc, 100, 0.25, 0.25, 0.25, 0.075);
             anchor.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, loc, 50, 0.1, 0.1, 0.1, 0.025);
             anchor.getWorld().playSound(loc, Sound.ENTITY_DRAGON_FIREBALL_EXPLODE, SoundCategory.BLOCKS, 1.5f, 0.25f);
         }
-
-        // set block to an ender chest...
         anchor.setType(Material.ENDER_CHEST);
-
-        // set the rotation of the ender chest...
         if (anchor.getBlockData() instanceof Directional) {
-
             Directional blockData = (Directional) anchor.getBlockData();
             blockData.setFacing(facing);
             anchor.setBlockData(blockData);
         }
-
-        // drop the teleportal's gateway prism...
         if (dropGatewayPrism && gatewayPrism != null) {
             anchor.getWorld().dropItemNaturally(loc, gatewayPrism);
         }
     }
 
     /**
-     * Teleports the given entity through the teleportal.
+     * Teleport the given entity through the teleportal.
      */
     public void teleport(Entity entity, BlockFace face) {
 
+        if (!isActivated()) {
+            return;
+        }
         Location loc = anchor.getLocation();
         ItemStack gatewayPrism = getGatewayPrism();
 
-        // get the exit link for this teleportal...
         String exitKey = Utils.getLoreData(gatewayPrism, "link");
-        Teleportal exit = Teleportal.getFromStruct(plugin, Utils.keyToBlock(exitKey));
+        Teleportal exit = Teleportal.getFromStruct(Utils.keyToBlock(exitKey));
         if (exit == null) {
             return;
         }
         Location tpLoc = exit.getAnchor().getLocation().add(0.5, -0.5, 0.5);
 
-        // choose the appropriate side of the teleportal to emerge from...
         BlockFace thisFace = this.getFacing();
         BlockFace exitFace = exit.getFacing();
 
         int faceOffset = (face.ordinal() - thisFace.ordinal());
         tpLoc.add(Utils.FACES[Math.floorMod(exitFace.ordinal() + faceOffset, Utils.FACES.length)].getDirection());
 
-        // choose the appropriate yaw and pitch to emerge with...
         float thisYaw = Utils.blockFaceToYaw(thisFace);
         float exitYaw = Utils.blockFaceToYaw(exitFace) - 180;
 
         tpLoc.setYaw(exitYaw - (thisYaw - entity.getLocation().getYaw()));
         tpLoc.setPitch(entity.getLocation().getPitch());
 
-        // play sound effects...
-        float randomPitch = 0.75f + (Utils.RNG.nextFloat() % 0.75f);
-        anchor.getWorld().playSound(loc, Sound.BLOCK_PORTAL_TRIGGER, SoundCategory.BLOCKS, 0.25f, randomPitch);
+        float randomSoundPitch = 0.75f + (Utils.RNG.nextFloat() % 0.75f);
+        anchor.getWorld().playSound(loc, Sound.BLOCK_PORTAL_TRIGGER, SoundCategory.BLOCKS, 0.25f, randomSoundPitch);
 
-        // teleport the entity...
         entity.teleport(tpLoc, PlayerTeleportEvent.TeleportCause.END_GATEWAY);
     }
 }

@@ -1,14 +1,19 @@
 package me.cynadyde.teleportals;
 
+import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
-import org.bukkit.command.*;
+import org.bukkit.block.BlockFace;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.EnderPearl;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -16,13 +21,17 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
+import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.util.BlockIterator;
+import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -34,70 +43,76 @@ import java.util.*;
 /**
  * Main class of the Teleportals plugin.
  */
-@SuppressWarnings({ "WeakerAccess" })
-public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandExecutor, TabExecutor {
+public class TeleportalsPlugin extends JavaPlugin implements Listener {
 
-    public final NamespacedKey teleportalKey = new NamespacedKey(this, "teleportal");
-    public final NamespacedKey gatewayPrismKey = new NamespacedKey(this, "gateway_prism");
+    private static TeleportalsPlugin instance;
 
-    private final File dataFile = new File(getDataFolder(), "metadata.yml");
-    private YamlConfiguration dataYaml = new YamlConfiguration();
+    private final File metadataFile = new File(getDataFolder(), "metadata.yml");
+    private final Map<String, NamespacedKey> namespacedKeys = new HashMap<>();
+    private final Map<UUID, Long> interactionCooldowns = new HashMap<>();
+    private final Set<EnderPearl> launchedPearls = new HashSet<>();
 
-    private final Map<UUID, Long> interactCooldown = new HashMap<>();
+    private PluginCommand pluginCmd;
+    private YamlConfiguration metadataYaml;
+    private boolean isEndGatewaySolid;
 
     /**
-     * The plugin enabled.
+     * Get the instance of this enabled plugin.
      */
-    @Override
-    public void onEnable() {
+    public static TeleportalsPlugin getInstance() {
+        try {
+            return Objects.requireNonNull(instance);
+            // return (TeleportalsPlugin) Objects.requireNonNull(Bukkit.getPluginManager().getPlugin("Teleportals"));
+        }
+        catch (NullPointerException | ClassCastException | IllegalArgumentException ex) {
+            throw new IllegalStateException("plugin not yet enabled");
+        }
+    }
 
-        // set up plugin configuration file...
+    /**
+     * Get a namespaced key for this plugin with the given name.
+     */
+    public static NamespacedKey getKey(String name) {
+
+        TeleportalsPlugin plugin = getInstance();
+        NamespacedKey key = plugin.namespacedKeys.get(name);
+        if (key == null) {
+            plugin.namespacedKeys.put(name, key = new NamespacedKey(plugin, name));
+        }
+        return key;
+    }
+
+    /**
+     * Reloads the plugin's configuration settings, schedules the
+     * metadata autosaver if enabled, and creates the gateway prism recipe.
+     */
+    public void refresh() {
+
         saveDefaultConfig();
         reloadConfig();
 
-        getConfig().options().copyDefaults(true);
+        getServer().getScheduler().cancelTasks(this);
+        getServer().getScheduler().runTaskTimer(this, this::trackEnderpearls, 0L, 1L);
 
-        // set up the metadata file...
-        reloadDataYaml();
-
-        // set up the auto-saving feature...
         if (getConfig().getBoolean("metadata.autosave.enabled")) {
-            int interval = Math.max(60, getConfig().getInt("metadata.autosave.interval")) * 20;  // seconds to ticks
+            int interval = Math.max(60, getConfig().getInt("metadata.autosave.interval")) * 20;
             getServer().getScheduler().scheduleSyncRepeatingTask(this, this::saveDataYaml, interval, interval);
         }
 
-        // create and add the plugin recipes...
         Recipe recipe;
         {
-            // create the result item...
-            int amount = getConfig().getInt("gateway-prism.amount");
-
-            if (amount < 1) {
-                getLogger().warning(String.format(
-                        "[Config] The amount '%d' at '%s' is invalid.",
-                        amount, "gateway-prism.amount"
-                ));
-                getLogger().warning("[Config] Using the default value: '1'.");
-
-                amount = 1;
-            }
+            int amount = Math.max(1, getConfig().getInt("gateway-prism.amount"));
             ItemStack item = makeGatewayPrism(amount);
 
-            // try to load the recipe in the configuration file...
             try {
-                recipe = Utils.createRecipe(gatewayPrismKey, item, getConfig(), "gateway-prism");
+                recipe = Utils.createRecipe(TeleportalsPlugin.getKey("gateway_prism"), item, getConfig(), "gateway-prism");
             }
             catch (Exception ex) {
-
-                getLogger().warning(String.format(
-                        "[Config] The Gateway Prism recipe defined in the config was malformed: %s",
-                        ex.getMessage()
-                ));
+                getLogger().warning(String.format("[Config] The Gateway Prism recipe defined in the config was malformed: %s", ex.getMessage()));
                 getLogger().warning("[Config] Using the default recipe instead.");
 
-                recipe = new ShapedRecipe(gatewayPrismKey, item);
+                recipe = new ShapedRecipe(TeleportalsPlugin.getKey("gateway_prism"), item);
                 ((ShapedRecipe) recipe).shape("OwO", "*u*", "-v-");
-
                 ((ShapedRecipe) recipe).setIngredient('O', Material.ENDER_EYE);
                 ((ShapedRecipe) recipe).setIngredient('*', Material.SHULKER_SHELL);
                 ((ShapedRecipe) recipe).setIngredient('-', Material.GOLD_INGOT);
@@ -107,79 +122,75 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             }
         }
         getServer().addRecipe(recipe);
+    }
 
-        // set up the plugin's commands...
-        PluginCommand pluginCmd = getCommand("teleportals");
+    @Override
+    public void onEnable() {
+
+        instance = this;
+
+        isEndGatewaySolid = false;
+        try {
+            String[] versionParts = Bukkit.getServer().getClass().getPackage().getName().split("\\.")[3].split("_");
+            isEndGatewaySolid = (versionParts[0].equals("v1") && Integer.parseInt(versionParts[1]) < 16);
+        }
+        catch (IndexOutOfBoundsException | NumberFormatException ignored) {
+        }
+
+        pluginCmd = getCommand("teleportals");
         if (pluginCmd != null) {
-
             pluginCmd.setExecutor(this);
             pluginCmd.setTabCompleter(this);
         }
-
-        // set up the plugin's listeners...
         getServer().getPluginManager().registerEvents(this, this);
+
+        refresh();
+        reloadDataYaml();
     }
 
-    /**
-     * The plugin disabled.
-     */
     @Override
     public void onDisable() {
 
-        interactCooldown.clear();
+        getServer().removeRecipe(TeleportalsPlugin.getKey("gateway_prism"));
+        getServer().getScheduler().cancelTasks(this);
+
         saveDataYaml();
+        interactionCooldowns.clear();
     }
 
-    /**
-     * Executes the plugin's commands.
-     */
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
-            @NotNull String alias, @NotNull String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
 
-        // the main plugin command...
-        if (alias.equalsIgnoreCase("teleportals")) {
-
-            // no arguments given...
+        if (command.equals(pluginCmd)) {
             if (args.length == 0) {
-
                 sendInfo(sender);
                 return true;
             }
-
-            // give sub-command given...
+            // give sub-command...
             else if (args[0].equalsIgnoreCase("spawnitem")) {
-
                 if (!sender.hasPermission("teleportals.admin.spawn")) {
                     sendMsg(sender, "no-perms-cmd");
                     return false;
                 }
-
                 if (!(sender instanceof Player)) {
                     sendMsg(sender, "not-player");
                     return false;
                 }
-
                 sendMsg(sender, "spawned-item");
                 ((Player) sender).getInventory().addItem(makeGatewayPrism(1));
                 return true;
             }
-
-            // reload sub-command given...
+            // reload sub-command...
             else if (args[0].equalsIgnoreCase("reloadconfig")) {
-
                 if (!sender.hasPermission("teleportals.admin.reload")) {
                     sendMsg(sender, "no-perms-cmd");
                     return false;
                 }
-
                 sendMsg(sender, "config-reloaded", sender.getName());
-                saveDefaultConfig();
-                reloadConfig();
+                refresh();
                 getConfig().options().copyDefaults(true);
                 return true;
             }
-
             // unknown sub-command given...
             else {
                 String cmd = "/" + alias + " " + String.join(" ", args);
@@ -190,27 +201,17 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         return false;
     }
 
-    /**
-     * Tab completes the plugin's commands.
-     */
     @Override
-    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
-            @NotNull String alias, @NotNull String[] args) {
+    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
 
         List<String> results = new ArrayList<>();
-
-        // the main plugin command...
-        if (alias.equalsIgnoreCase("teleportals")) {
-
-            // no sub-commands specified...
+        if (command.equals(pluginCmd)) {
             if (args.length == 1) {
-
                 if (sender.hasPermission("teleportals.admin.spawn")) {
                     if ("spawnitem".startsWith(args[0])) {
                         results.add("spawnitem");
                     }
                 }
-
                 if (sender.hasPermission("teleportals.admin.reload")) {
                     if ("reloadconfig".startsWith(args[0])) {
                         results.add("reloadconfig");
@@ -222,21 +223,15 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Blocks players from crafting gateway prisms if they lack permission.
+     * Prevent a player from crafting the gateway prism if they lack permission.
      */
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onPrepareCraftItem(@NotNull PrepareItemCraftEvent event) {
 
-        // if the recipe is a shaped recipe...
         if (event.getRecipe() instanceof ShapedRecipe) {
-
-            // if the recipe is the gateway prism recipe...
-            if (((ShapedRecipe) event.getRecipe()).getKey().equals(gatewayPrismKey)) {
-
-                // if the crafter lacks permission to craft the gateway prism...
+            if (((ShapedRecipe) event.getRecipe()).getKey().equals(TeleportalsPlugin.getKey("gateway_prism"))) {
                 if (!event.getView().getPlayer().hasPermission("teleportals.player.craft")) {
 
-                    // fail their crafting...
                     sendMsg(event.getView().getPlayer(), "no-perms-craft");
                     event.getInventory().setResult(null);
                 }
@@ -245,58 +240,42 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Handles the activation of teleportals.
+     * Handle the potential activation of a teleportal or linking of a gateway prism.
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerInteract(@NotNull PlayerInteractEvent event) {
 
-        // if the player right clicks a block...
         if (event.getAction().equals(Action.RIGHT_CLICK_BLOCK)) {
-
-            // if the clicked block was the same material as a teleportal...
             Block block = event.getClickedBlock();
-            if (block != null && (block.getType() == Material.ENDER_CHEST
-                    || block.getType() == Material.END_GATEWAY)) {
+            if (block != null && (block.getType() == Material.ENDER_CHEST || block.getType() == Material.END_GATEWAY)) {
 
                 // make sure the cooldown for this player is over...
-                if (!interactCooldown.containsKey(event.getPlayer().getUniqueId())) {
-                    interactCooldown.put(event.getPlayer().getUniqueId(), System.currentTimeMillis());
+                if (!interactionCooldowns.containsKey(event.getPlayer().getUniqueId())) {
+                    interactionCooldowns.put(event.getPlayer().getUniqueId(), System.currentTimeMillis());
                 }
                 else {
-                    Long lastInteract = interactCooldown.get(event.getPlayer().getUniqueId());
-
+                    Long lastInteract = interactionCooldowns.get(event.getPlayer().getUniqueId());
                     if ((System.currentTimeMillis() - lastInteract) >= 500L) {
-                        interactCooldown.remove(event.getPlayer().getUniqueId());
+                        interactionCooldowns.remove(event.getPlayer().getUniqueId());
                     }
                     else {
                         return;
                     }
                 }
-
-                // if the player was using a gateway prism...
                 ItemStack usedItem = event.getPlayer().getInventory().getItemInMainHand();
+                if (Utils.hasLoreTag(usedItem, TeleportalsPlugin.getKey("gateway_prism").toString())) {
 
-                if (Utils.hasLoreTag(usedItem, gatewayPrismKey.toString())) {
-
-                    // if the clicked block was part of a teleportal structure...
-                    Teleportal teleportal = Teleportal.getFromStruct(this, block);
+                    Teleportal teleportal = Teleportal.getFromStruct(block);
                     if (teleportal != null) {
 
-                        // if the player is sneaking...
                         if (event.getPlayer().isSneaking()) {
-
-                            // make sure the player has permission to link a gateway prism...
                             if (!event.getPlayer().hasPermission("teleportals.player.link")) {
                                 sendMsg(event.getPlayer(), "no-perms-link");
                                 return;
                             }
-                            // link the gateway prism to this teleportal...
                             teleportal.linkGatewayPrism(usedItem);
                         }
-                        // else...
                         else {
-
-                            // make sure the player has permission to activate a teleportal...
                             if (!event.getPlayer().hasPermission("teleportals.player.activate")) {
                                 sendMsg(event.getPlayer(), "no-perms-activate");
                                 return;
@@ -308,18 +287,11 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
                                 sendMsg(event.getPlayer(), "active-portal-limit", limit);
                                 return;
                             }
-
-                            // activate the teleportal...
                             if (teleportal.activate(usedItem)) {
-
                                 augActivePortalCount(event.getPlayer().getUniqueId(), 1);
-
-                                // consume the gateway prism...
                                 if (event.getPlayer().getGameMode() != GameMode.CREATIVE) {
                                     usedItem.setAmount(usedItem.getAmount() - 1);
                                 }
-
-                                // give the teleportal's marker its creator's uuid...
                                 teleportal.setPortalName(event.getPlayer().getUniqueId().toString());
                             }
                         }
@@ -330,20 +302,15 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Handles destruction of teleportals.
+     * Handle the potential destruction of a teleportal.
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(@NotNull BlockBreakEvent event) {
 
-        // if a teleportal structure is about to be broken...
-        Teleportal teleportal = Teleportal.getFromStruct(this, event.getBlock());
-
+        Teleportal teleportal = Teleportal.getFromStruct(event.getBlock());
         if (teleportal != null) {
-
-            // deactivate the teleportal...
             teleportal.deactivate(getConfig().getBoolean("gateway-prism.reusable", true));
 
-            // decrease the active portal count for the teleportal's creator...
             String name = teleportal.getPortalName();
             if (name != null) {
                 augActivePortalCount(UUID.fromString(name), -1);
@@ -352,40 +319,57 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Handles players ender-pearling into teleportals.
+     * Allow players to discover the gateway prism recipe by using an end gateway.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
+
+        if (event.getCause() == PlayerTeleportEvent.TeleportCause.END_GATEWAY) {
+            event.getPlayer().discoverRecipe(TeleportalsPlugin.getKey("gateway_prism"));
+        }
+    }
+
+    /**
+     * Track ender pearls potentially entering a teleportal's end gateway.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onProjectileLaunch(ProjectileLaunchEvent event) {
+
+        if (!isEndGatewaySolid) {
+            if (event.getEntity().getType() == EntityType.ENDER_PEARL) {
+                EnderPearl pearl = (EnderPearl) event.getEntity();
+                if (pearl.getShooter() instanceof Entity) {
+                    launchedPearls.add(pearl);
+                }
+            }
+        }
+    }
+
+    /**
+     * Handle a player potentially ender-pearling into a teleportal.
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onProjectileHitEvent(@NotNull ProjectileHitEvent event) {
 
-        // if the projectile entity was an ender pearl...
         if (event.getEntity() instanceof EnderPearl) {
 
-            EnderPearl enderPearl = (EnderPearl) event.getEntity();
+            EnderPearl pearl = (EnderPearl) event.getEntity();
+            if (pearl.getShooter() instanceof Entity) {
+                Entity shooter = (Entity) pearl.getShooter();
 
-            // if its shooter was an entity that can be teleported...
-            if (enderPearl.getShooter() instanceof Entity) {
+                launchedPearls.remove(pearl);
 
-                Entity shooter = (Entity) enderPearl.getShooter();
-
-                // if the ender pearl hit an end-gateway block...
                 Block block = event.getHitBlock();
-                if (block != null && block.getType() == Material.END_GATEWAY
-                        && event.getHitBlockFace() != null) {
+                if (block != null && block.getType() == Material.END_GATEWAY && event.getHitBlockFace() != null) {
 
-                    // if the end-gateway was a teleportal...
-                    Teleportal teleportal = Teleportal.getFromStruct(this, block);
+                    Teleportal teleportal = Teleportal.getFromStruct(block);
                     if (teleportal != null) {
-
                         if (shooter instanceof Player) {
-
-                            // make sure the player has permission to use a teleportal...
                             if (!shooter.hasPermission("teleportals.player.use")) {
                                 sendMsg(shooter, "no-perms-use");
                                 return;
                             }
                         }
-
-                        // teleport the entity...
                         teleportal.teleport(shooter, event.getHitBlockFace());
                     }
                 }
@@ -394,54 +378,94 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Reloads metadata from file, if any enabled.
+     * Manually fire a projectile collision event when an ender pearl collides with an end gateway.
      */
-    public void reloadDataYaml() {
+    public void trackEnderpearls() {
 
-        // if no meta data options were enabled, just return an empty data yaml...
+        for (EnderPearl pearl : launchedPearls) {
+            if (pearl.isValid()) {
+                Block hitBlock;
 
-        if (!anyMetadataEnabled()) {
-            dataYaml = new YamlConfiguration();
-            return;
-        }
+                findCollision:
+                {
+                    Vector start = pearl.getLocation().toVector();
+                    Vector finish = pearl.getVelocity().add(start);
 
-        // else, load meta data from file...
+                    if (start.toBlockVector().equals(finish.toBlockVector())) {
+                        Block block = pearl.getLocation().getBlock();
+                        if (block.getType() == Material.END_GATEWAY) {
+                            hitBlock = block;
+                            break findCollision;
+                        }
+                    }
+                    else {
+                        BlockIterator ray = new BlockIterator(
+                                pearl.getWorld(),
+                                start,
+                                pearl.getVelocity().normalize(),
+                                0,
+                                (int) Math.ceil(pearl.getVelocity().length()));
+                        while (ray.hasNext()) {
+                            Block block = ray.next();
+                            if (block.getType() == Material.END_GATEWAY) {
+                                hitBlock = block;
+                                break findCollision;
+                            }
+                        }
+                    }
+                    continue;
+                }
+                float yaw = 0 - pearl.getLocation().getYaw();
+                BlockFace hitFace = Utils.yawToBlockFace(yaw).getOppositeFace();
 
-        if (!dataFile.exists()) {
-            try {
-                Files.createFile(dataFile.toPath());
+                ProjectileHitEvent event = new ProjectileHitEvent(pearl, null, hitBlock, hitFace);
+                getServer().getPluginManager().callEvent(event);
+                pearl.remove();
             }
-            catch (IOException ex) {
-                getLogger().severe("Unable to create the metadata.yml file: " + ex.getMessage());
-                getLogger().severe("Plugin will have reduced functionality.");
-            }
-        }
-        dataYaml = YamlConfiguration.loadConfiguration(dataFile);
-
-        // only keep sections that are enabled...
-
-        if (!getConfig().getBoolean("metadata.track-active-portal-counts", false)) {
-            dataYaml.set("player-active-portal-counts", null);
+            launchedPearls.remove(pearl);
         }
     }
 
     /**
-     * Saves collected metadata to file, if any are enabled, else removes the file.
+     * Reload any collected metadata from file.
+     */
+    public void reloadDataYaml() {
+
+        if (!anyMetadataEnabled()) {
+            metadataYaml = new YamlConfiguration();
+            return;
+        }
+        if (!metadataFile.exists()) {
+            try {
+                Files.createFile(metadataFile.toPath());
+            }
+            catch (IOException ex) {
+                getLogger().severe("Unable to create the metadata.yml file: " + ex.getMessage());
+            }
+        }
+        metadataYaml = YamlConfiguration.loadConfiguration(metadataFile);
+
+        if (!getConfig().getBoolean("metadata.track-active-portal-counts", false)) {
+            metadataYaml.set("player-active-portal-counts", null);
+        }
+    }
+
+    /**
+     * Save metadata to file if any was collected, else remove the file if it exists.
      */
     public void saveDataYaml() {
 
         if (anyMetadataEnabled()) {
             try {
-                dataYaml.save(dataFile);
+                metadataYaml.save(metadataFile);
             }
             catch (IOException ex) {
                 getLogger().severe("Unable to save to the metadata.yml file: " + ex.getMessage());
-                getLogger().severe("Plugin will have reduced functionality.");
             }
         }
         else {
             try {
-                Files.deleteIfExists(dataFile.toPath());
+                Files.deleteIfExists(metadataFile.toPath());
             }
             catch (IOException ex) {
                 getLogger().warning("Unable to remove the metadata.yml file: " + ex.getMessage());
@@ -450,7 +474,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Tests if any metadata options are enabled in the config.
+     * Test if any metadata options are enabled in the config.
      */
     public boolean anyMetadataEnabled() {
 
@@ -468,16 +492,17 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Gets the plugin's chat tag.
+     * Get the plugin's chat tag.
      */
     public @NotNull String getTag() {
+
         String tag = getConfig().getString("messages.tag");
         return (tag == null) ? "" : Utils.format(tag);
     }
 
     /**
-     * Gets the player's active teleportal limit if they have one, else null.
-     * If track-active-portal-counts is not enabled in the config, returns null.
+     * Get the player's active teleportal limit if they have one, else null.
+     * If track-active-portal-counts is not enabled in the config, this returns null.
      */
     public Integer getMaxActivePortalLimit(Player player) {
 
@@ -500,8 +525,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Gets the player's active teleportal count.
-     * If track-active-portal-counts is not enabled in the config, returns 0.
+     * Get the player with the given UUID's active teleportal count.
+     * If track-active-portal-counts is not enabled in the config, this returns 0.
      */
     public int getActivePortalCount(UUID uuid) {
 
@@ -509,10 +534,10 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             return 0;
         }
         ConfigurationSection ymlPlayerActivePortalCounts =
-                dataYaml.getConfigurationSection("player-active-portal-counts");
+                metadataYaml.getConfigurationSection("player-active-portal-counts");
 
         if (ymlPlayerActivePortalCounts == null) {
-            dataYaml.createSection("player-active-portal-counts");
+            metadataYaml.createSection("player-active-portal-counts");
             return 0;
         }
         String key = uuid.toString();
@@ -523,8 +548,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
     }
 
     /**
-     * Augments the player's active teleportal count by the specified amount.
-     * If track-active-portal-counts is not enabled in the config, does nothing.
+     * Augment the player's active teleportal count by the specified amount.
+     * If track-active-portal-counts is not enabled in the config, this does nothing.
      */
     public void augActivePortalCount(UUID uuid, int amount) {
 
@@ -532,10 +557,10 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             return;
         }
         ConfigurationSection ymlPlayerActivePortalCounts =
-                dataYaml.getConfigurationSection("player-active-portal-counts");
+                metadataYaml.getConfigurationSection("player-active-portal-counts");
 
         if (ymlPlayerActivePortalCounts == null) {
-            dataYaml.createSection("player-active-portal-counts");
+            metadataYaml.createSection("player-active-portal-counts");
             return;
         }
         String key = uuid.toString();
@@ -584,13 +609,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
             mat = Material.valueOf(matName);
         }
         catch (IllegalArgumentException ex) {
-
-            getLogger().warning(String.format(
-                    "[Config] The material '%s' at '%s' is invalid.",
-                    matName, "gateway-prism.material"
-            ));
+            getLogger().warning(String.format("[Config] The material '%s' at '%s' is invalid.", matName, "gateway-prism.material"));
             getLogger().warning("Using the default value: 'GOLDEN_SWORD'.");
-
             mat = Material.GOLDEN_SWORD;
         }
 
@@ -600,11 +620,10 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener, CommandEx
         List<String> lore = getConfig().getStringList("gateway-prism.lore");
 
         Utils.setDisplayName(item, (name == null) ? null : Utils.format(name));
-        Utils.addLore(item, Utils.format("&8&o") + gatewayPrismKey.toString());
+        Utils.addLore(item, Utils.format("&8&o") + TeleportalsPlugin.getKey("gateway_prism").toString());
         for (String line : lore) {
             Utils.addLore(item, Utils.format(line));
         }
-
         return item;
     }
 }
