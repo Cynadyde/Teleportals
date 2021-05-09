@@ -238,7 +238,7 @@ public class Teleportal {
     /**
      * Teleport the given entity through the teleportal.
      */
-    public void teleport(Entity entity, BlockFace face) {
+    public void teleport(Entity entity, BlockFace enterFace) {
 
         if (!isActivated()) {
             return;
@@ -253,16 +253,37 @@ public class Teleportal {
         }
         Location tpLoc = exit.getAnchor().getLocation().add(0.5, -0.5, 0.5);
 
+        TeleportalsPlugin.getInstance().getLogger().info("----------");
+        TeleportalsPlugin.getInstance().getLogger().info("teleporting entity...");
+
         BlockFace thisFace = this.getFacing();
-        BlockFace exitFace = exit.getFacing();
+        BlockFace thatFace = exit.getFacing();
+        BlockFace exitFace;
+        {
+            int hitFaceOffset = (enterFace.ordinal() - thisFace.ordinal());
+            int unOccludedExitOffset = 0;
+            do {
+                int i = thatFace.ordinal() + hitFaceOffset + unOccludedExitOffset;
+                exitFace = Utils.FACES[Math.floorMod(i, Utils.FACES.length)];
+                unOccludedExitOffset++;
+            }
+            while (unOccludedExitOffset <= 4 && exit.getAnchor().getRelative(exitFace).getType().isOccluding());
+        }
+        tpLoc.add(exitFace.getDirection());
 
-        int faceOffset = (face.ordinal() - thisFace.ordinal());
-        tpLoc.add(Utils.FACES[Math.floorMod(exitFace.ordinal() + faceOffset, Utils.FACES.length)].getDirection());
+        float startYaw = entity.getLocation().getYaw();
+        float enterYaw = Utils.blockFaceToYaw(enterFace);
+        float exitYaw = Utils.blockFaceToYaw(exitFace);
+        float endYaw = exitYaw + ((startYaw + 180) - enterYaw);
 
-        float thisYaw = Utils.blockFaceToYaw(thisFace);
-        float exitYaw = Utils.blockFaceToYaw(exitFace) - 180;
+        TeleportalsPlugin.getInstance().getLogger().info("thisYaw = " + Utils.blockFaceToYaw(thisFace) + " (" + thisFace + ")");
+        TeleportalsPlugin.getInstance().getLogger().info("thatYaw = " + Utils.blockFaceToYaw(thatFace) + " (" + thatFace + ")");
+        TeleportalsPlugin.getInstance().getLogger().info("enterYaw = " + enterYaw + " (" + enterFace + ")");
+        TeleportalsPlugin.getInstance().getLogger().info("exitYaw = " + exitYaw + " (" + exitFace + ")");
+        TeleportalsPlugin.getInstance().getLogger().info("startYaw = " + startYaw);
+        TeleportalsPlugin.getInstance().getLogger().info("endYaw = " + endYaw);
 
-        tpLoc.setYaw(exitYaw - (thisYaw - entity.getLocation().getYaw()));
+        tpLoc.setYaw(endYaw);
         tpLoc.setPitch(entity.getLocation().getPitch());
 
         float randomSoundPitch = 0.75f + (Utils.RNG.nextFloat() % 0.75f);

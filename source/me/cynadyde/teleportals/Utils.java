@@ -295,7 +295,7 @@ public class Utils {
      * Get the yaw represented by a given block face.
      */
     public static float blockFaceToYaw(BlockFace facing) {
-        return (facing.ordinal() * 90f) + 180;
+        return (facing.ordinal() * 90f) - 180;
     }
 
     /**
