@@ -9,9 +9,9 @@ To install, simply place the jar file in your server's `plugins` folder. There a
 
 ###### No version available for Minecraft 1.13.X and below
 
-##### For Minecraft 1.14.X, 1.15.X, and 1.16.X
+##### For Minecraft 1.16.X, through 1.14.X
 
-> [Teleportals_1.16.5-0.jar](https://github.com/Cynadyde/Teleportals/raw/master/builds/Teleportals_1.16.5-0.jar)
+> [Teleportals_1.16.5-1.jar](https://github.com/Cynadyde/Teleportals/raw/master/builds/Teleportals_1.16.5-1.jar)
 
 ## Bugs & Feedback
 
