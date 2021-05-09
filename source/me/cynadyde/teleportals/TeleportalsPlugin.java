@@ -94,7 +94,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         reloadConfig();
 
         getServer().getScheduler().cancelTasks(this);
-        getServer().getScheduler().runTaskTimer(this, this::trackEnderpearls, 0L, 1L);
+        getServer().getScheduler().scheduleSyncRepeatingTask(this, this::trackEnderpearls, 0L, 1L);
 
         if (getConfig().getBoolean("metadata.autosave.enabled")) {
             int interval = Math.max(60, getConfig().getInt("metadata.autosave.interval")) * 20;
@@ -193,6 +193,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                 }
                 sendMsg(sender, "config-reloaded", sender.getName());
                 refresh();
+                saveDataYaml();
                 getConfig().options().copyDefaults(true);
                 return true;
             }
@@ -287,7 +288,8 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                                 return;
                             }
                             if (!isWorldOkayForPortalActivation(event.getPlayer(), event.getPlayer().getWorld())) {
-                                sendMsg(event.getPlayer(), "no-perms-activate");
+                                sendMsg(event.getPlayer(), "no-perms-activate-here",
+                                        event.getPlayer().getWorld().getName());
                                 return;
                             }
                             Integer limit = getMaxActivePortalLimit(event.getPlayer());
@@ -297,14 +299,13 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                             }
                             if (!isCrossWorldActivationAllowed()) {
                                 String exitKey = Utils.getLoreData(usedItem, "link");
-                                Block exit = Utils.keyToBlock(exitKey);
-                                if (exit != null) {
-                                    if (!block.getWorld().equals(exit.getWorld())) {
-                                        sendMsg(event.getPlayer(), "cant-cross-worlds",
-                                                block.getWorld().getName(),
-                                                exit.getWorld().getName());
-                                        return;
-                                    }
+                                String[] exitKeyTokens = exitKey.split(",");
+                                String exitWorldName = exitKeyTokens.length >= 1 ? exitKeyTokens[0] : "";
+                                if (!block.getWorld().getName().equals(exitWorldName)) {
+                                    sendMsg(event.getPlayer(), "cant-cross-worlds",
+                                            block.getWorld().getName(),
+                                            exitWorldName);
+                                    return;
                                 }
                             }
 
@@ -389,7 +390,18 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                                 return;
                             }
                         }
-                        teleportal.teleport(shooter, event.getHitBlockFace());
+                        boolean tryNonOccludedExit = getConfig().getBoolean("teleportal.try-non-occluded-exit", true);
+                        boolean failOnFullyOccludedExit = getConfig().getBoolean("teleportal.fail-on-fully-occluded-exit", false);
+
+                        if (!teleportal.teleport(shooter, event.getHitBlockFace(), tryNonOccludedExit, failOnFullyOccludedExit)) {
+
+                            if (shooter instanceof Player) {
+                                int damageAmount = getConfig().getInt("teleportal.usage-fail-damage", 1);
+                                if (damageAmount > 0) {
+                                    ((Player) shooter).damage(damageAmount);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -397,11 +409,12 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
     }
 
     /**
-     * Manually fire a projectile collision event when an ender pearl collides with an end gateway.
+     * Manually fire a projectile collision event when an ender pearl collides with a teleportal's end gateway
      */
     public void trackEnderpearls() {
 
-        for (EnderPearl pearl : launchedPearls) {
+        Set<EnderPearl> pearlsToTrack = new HashSet<>(launchedPearls);
+        for (EnderPearl pearl : pearlsToTrack) {
             if (pearl.isValid()) {
                 Block hitBlock;
 
@@ -434,13 +447,16 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                     }
                     continue;
                 }
-                float yaw = 0 - pearl.getLocation().getYaw();
-                BlockFace hitFace = Utils.yawToBlockFace(yaw).getOppositeFace();
-                // TODO find collided face instead of using the ender pearl's yaw
+                if (hitBlock.getType() == Material.END_GATEWAY && Teleportal.getFromStruct(hitBlock) != null) {
 
-                ProjectileHitEvent event = new ProjectileHitEvent(pearl, null, hitBlock, hitFace);
-                getServer().getPluginManager().callEvent(event);
-                getServer().getScheduler().runTaskLater(this, pearl::remove, 2L);
+                    // TODO find collided face instead of using the ender pearl's yaw
+                    float yaw = 0 - pearl.getLocation().getYaw();
+                    BlockFace hitFace = Utils.yawToBlockFace(yaw).getOppositeFace();
+
+                    ProjectileHitEvent event = new ProjectileHitEvent(pearl, null, hitBlock, hitFace);
+                    getServer().getPluginManager().callEvent(event);
+                    pearl.remove();
+                }
             }
             launchedPearls.remove(pearl);
         }
@@ -596,7 +612,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
      * Test if players are allowed to link teleportals across different worlds.
      */
     public boolean isCrossWorldActivationAllowed() {
-        return getConfig().getBoolean("teleportals.cross-world", true);
+        return getConfig().getBoolean("teleportal.cross-world", true);
     }
 
     /**

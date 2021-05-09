@@ -12,6 +12,7 @@ messages:
   no-perms-craft: "&cInsufficient permission to craft that item."
   no-perms-link: "&cInsufficient permission to link with teleportals."
   no-perms-activate: "&cInsufficient permission to activate teleportals."
+  no-perms-activate-here: "&cYou cannot activate a teleportal in &e%s"
   active-portal-limit: "&cYou've reached your teleportal limit of &6%d&c."
   no-perms-deactivate: "&cInsufficient permission to deactivate teleportals."
   no-perms-use: "&cInsufficient permission to use teleportals."
@@ -48,11 +49,12 @@ messages:
 # #   normalplayer:
 # #     worlds-cannot-activate:
 # #       - hub
+# #       - world2
 # #   limitedplayer:
 # #     max-active-portals: 10
 # #     worlds-can-activate:
 # #       - world
-groups: {}
+groups: { }
 
 # if you have a metadata option enabled and you
 # disable it, any collected data will be lost.
@@ -71,13 +73,19 @@ metadata:
 
 # Customize the plugin's teleportal multi-block structure.
 # 'cross-world' allows players to link teleportals between different worlds.
+# 'usage-fail-damage' (when greater than zero) hurts the player when using the teleportal fails.
+# 'attempt-non-occluded-exit' tries to find an exit side that will not suffocate the player.
+# 'fail-on-fully-occluded-exit' will prevent using a teleportal whose exit would suffocate the player on all sides.
 teleportal:
   cross-world: true
+  usage-fail-damage: 1
+  try-non-occluded-exit: true
+  fail-on-fully-occluded-exit: true
 
 # Customize the plugin's gateway prism item.
 # 'reusable' means the gateway prism is dropped when the portal is broken.
 # You may use 'recipe-shapeless' instead of 'recipe-shaped'.
-#   Requires a full PLUGIN reload for changes to take effect.
+#   Requires a config reload for changes to take effect.
 #   Does not affect existing items in the world.
 #   Existing items will still work.
 gateway-prism:

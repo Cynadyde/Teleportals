@@ -238,10 +238,10 @@ public class Teleportal {
     /**
      * Teleport the given entity through the teleportal.
      */
-    public void teleport(Entity entity, BlockFace enterFace) {
+    public boolean teleport(Entity entity, BlockFace enterFace, boolean tryNonOccludedExit, boolean failOnFullyOccludedExit) {
 
         if (!isActivated()) {
-            return;
+            return false;
         }
         Location loc = anchor.getLocation();
         ItemStack gatewayPrism = getGatewayPrism();
@@ -249,7 +249,7 @@ public class Teleportal {
         String exitKey = Utils.getLoreData(gatewayPrism, "link");
         Teleportal exit = Teleportal.getFromStruct(Utils.keyToBlock(exitKey));
         if (exit == null) {
-            return;
+            return false;
         }
         Location tpLoc = exit.getAnchor().getLocation().add(0.5, -0.5, 0.5);
 
@@ -264,7 +264,13 @@ public class Teleportal {
                 exitFace = Utils.FACES[Math.floorMod(i, Utils.FACES.length)];
                 unOccludedExitOffset++;
             }
-            while (unOccludedExitOffset <= 4 && exit.getAnchor().getRelative(exitFace).getType().isOccluding());
+            while (tryNonOccludedExit &&
+                    unOccludedExitOffset <= 4 &&
+                    exit.getAnchor().getRelative(exitFace).getType().isOccluding() &&
+                    exit.getAnchor().getRelative(exitFace).getRelative(BlockFace.DOWN).getType().isOccluding());
+            if (failOnFullyOccludedExit && unOccludedExitOffset >= 4) {
+                return false;
+            }
         }
         tpLoc.add(exitFace.getDirection());
 
@@ -280,5 +286,6 @@ public class Teleportal {
         anchor.getWorld().playSound(loc, Sound.BLOCK_PORTAL_TRIGGER, SoundCategory.BLOCKS, 0.25f, randomSoundPitch);
 
         entity.teleport(tpLoc, PlayerTeleportEvent.TeleportCause.END_GATEWAY);
+        return true;
     }
 }
