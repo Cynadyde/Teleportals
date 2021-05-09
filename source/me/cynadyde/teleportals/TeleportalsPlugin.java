@@ -2,6 +2,7 @@ package me.cynadyde.teleportals;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.Keyed;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
@@ -101,18 +102,19 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
         }
 
         Recipe recipe;
+        NamespacedKey recipeKey = TeleportalsPlugin.getKey("gateway_prism");
         {
             int amount = Math.max(1, getConfig().getInt("gateway-prism.amount"));
             ItemStack item = makeGatewayPrism(amount);
 
             try {
-                recipe = Utils.createRecipe(TeleportalsPlugin.getKey("gateway_prism"), item, getConfig(), "gateway-prism");
+                recipe = Utils.createRecipe(recipeKey, item, getConfig(), "gateway-prism");
             }
             catch (Exception ex) {
                 getLogger().warning(String.format("[Config] The Gateway Prism recipe defined in the config was malformed: %s", ex.getMessage()));
                 getLogger().warning("[Config] Using the default recipe instead.");
 
-                recipe = new ShapedRecipe(TeleportalsPlugin.getKey("gateway_prism"), item);
+                recipe = new ShapedRecipe(recipeKey, item);
                 ((ShapedRecipe) recipe).shape("OwO", "*u*", "-v-");
                 ((ShapedRecipe) recipe).setIngredient('O', Material.ENDER_EYE);
                 ((ShapedRecipe) recipe).setIngredient('*', Material.SHULKER_SHELL);
@@ -122,8 +124,9 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                 ((ShapedRecipe) recipe).setIngredient('v', Material.BEACON);
             }
         }
-        getServer().removeRecipe(TeleportalsPlugin.getKey("gateway-prism"));
-        getServer().addRecipe(recipe);
+        final Recipe addedRecipe = recipe;
+        getServer().removeRecipe(((Keyed) recipe).getKey());
+        getServer().getScheduler().runTaskLater(this, () -> getServer().addRecipe(addedRecipe), 2L);
     }
 
     @Override
