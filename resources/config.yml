@@ -15,6 +15,7 @@ messages:
   active-portal-limit: "&cYou've reached your teleportal limit of &6%d&c."
   no-perms-deactivate: "&cInsufficient permission to deactivate teleportals."
   no-perms-use: "&cInsufficient permission to use teleportals."
+  cant-cross-worlds: "&cYou cannot link a teleportal from &e%s &cto &e%s"
   not-player: "&cYou must be an in-game player to use that command."
   unknown-cmd: "&cUnknown command: \"%s\""
   invalid-arg: "&cInvalid argument given: \"%s\""
@@ -33,12 +34,25 @@ messages:
     &c/teleportals reloadconfig &7- reload the plugin's configuration file.
 
 # Create permission groups for the plugin.
-# Specific limits can be applied to players who have
+# Specific, optional limits can be applied to players who have
 #   the permission node 'teleportals.group.<name>',
 #   where <name> is one of the groups defined below.
-groups:
-  limitedplayer:
-    max-active-portals: 10
+#
+# Here are the optional limits you can define:
+#  * max-active-portals: non-negative integer
+#  * worlds-can-activate: list of strings (a world whitelist)
+#  * worlds-cannot-activate: list of strings (alternatively, a world blacklist)
+#
+# Here is an example:
+# # groups:
+# #   normalplayer:
+# #     worlds-cannot-activate:
+# #       - hub
+# #   limitedplayer:
+# #     max-active-portals: 10
+# #     worlds-can-activate:
+# #       - world
+groups: {}
 
 # if you have a metadata option enabled and you
 # disable it, any collected data will be lost.
@@ -54,6 +68,11 @@ metadata:
   autosave:
     enabled: true
     interval: 1200  # seconds
+
+# Customize the plugin's teleportal multi-block structure.
+# 'cross-world' allows players to link teleportals between different worlds.
+teleportal:
+  cross-world: true
 
 # Customize the plugin's gateway prism item.
 # 'reusable' means the gateway prism is dropped when the portal is broken.

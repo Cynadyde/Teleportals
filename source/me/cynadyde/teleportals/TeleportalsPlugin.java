@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.command.Command;
@@ -121,6 +122,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                 ((ShapedRecipe) recipe).setIngredient('v', Material.BEACON);
             }
         }
+        getServer().removeRecipe(TeleportalsPlugin.getKey("gateway-prism"));
         getServer().addRecipe(recipe);
     }
 
@@ -276,17 +278,33 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                             teleportal.linkGatewayPrism(usedItem);
                         }
                         else {
+                            // make sure the player can activate a teleportal
                             if (!event.getPlayer().hasPermission("teleportals.player.activate")) {
                                 sendMsg(event.getPlayer(), "no-perms-activate");
                                 return;
                             }
-
-                            // make sure any limits for this player haven't been reached...
+                            if (!isWorldOkayForPortalActivation(event.getPlayer(), event.getPlayer().getWorld())) {
+                                sendMsg(event.getPlayer(), "no-perms-activate");
+                                return;
+                            }
                             Integer limit = getMaxActivePortalLimit(event.getPlayer());
                             if (limit != null && (getActivePortalCount(event.getPlayer().getUniqueId()) >= limit)) {
                                 sendMsg(event.getPlayer(), "active-portal-limit", limit);
                                 return;
                             }
+                            if (!isCrossWorldActivationAllowed()) {
+                                String exitKey = Utils.getLoreData(usedItem, "link");
+                                Block exit = Utils.keyToBlock(exitKey);
+                                if (exit != null) {
+                                    if (!block.getWorld().equals(exit.getWorld())) {
+                                        sendMsg(event.getPlayer(), "cant-cross-worlds",
+                                                block.getWorld().getName(),
+                                                exit.getWorld().getName());
+                                        return;
+                                    }
+                                }
+                            }
+
                             if (teleportal.activate(usedItem)) {
                                 augActivePortalCount(event.getPlayer().getUniqueId(), 1);
                                 if (event.getPlayer().getGameMode() != GameMode.CREATIVE) {
@@ -417,6 +435,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                 }
                 float yaw = 0 - pearl.getLocation().getYaw();
                 BlockFace hitFace = Utils.yawToBlockFace(yaw).getOppositeFace();
+                // TODO find collided face instead of using the ender pearl's yaw
 
                 ProjectileHitEvent event = new ProjectileHitEvent(pearl, null, hitBlock, hitFace);
                 getServer().getPluginManager().callEvent(event);
@@ -570,6 +589,41 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
             total += ymlPlayerActivePortalCounts.getInt(key);
         }
         ymlPlayerActivePortalCounts.set(key, Math.max(total, 0));
+    }
+
+    /**
+     * Test if players are allowed to link teleportals across different worlds.
+     */
+    public boolean isCrossWorldActivationAllowed() {
+        return getConfig().getBoolean("teleportals.cross-world", true);
+    }
+
+    /**
+     * Test if the player can activate a teleportal in the given world.
+     */
+    public boolean isWorldOkayForPortalActivation(Player player, World world) {
+        ConfigurationSection ymlGroups = getConfig().getConfigurationSection("groups");
+        if (ymlGroups != null) {
+
+            Set<String> groups = ymlGroups.getKeys(false);
+            for (String group : groups) {
+
+                if (player.hasPermission("teleportals.group." + group)) {
+                    List<String> whitelist = ymlGroups.getStringList(group + ".worlds-can-activate");
+                    if (!whitelist.isEmpty()) {
+                        return whitelist.contains(world.getName());
+                    }
+                    else {
+                        List<String> blacklist = ymlGroups.getStringList(group + ".worlds-cannot-activate");
+                        if (!blacklist.isEmpty()) {
+                            return blacklist.contains(world.getName());
+                        }
+
+                    }
+                }
+            }
+        }
+        return true;
     }
 
     /**
