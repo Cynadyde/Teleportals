@@ -253,9 +253,6 @@ public class Teleportal {
         }
         Location tpLoc = exit.getAnchor().getLocation().add(0.5, -0.5, 0.5);
 
-        TeleportalsPlugin.getInstance().getLogger().info("----------");
-        TeleportalsPlugin.getInstance().getLogger().info("teleporting entity...");
-
         BlockFace thisFace = this.getFacing();
         BlockFace thatFace = exit.getFacing();
         BlockFace exitFace;
@@ -275,13 +272,6 @@ public class Teleportal {
         float enterYaw = Utils.blockFaceToYaw(enterFace);
         float exitYaw = Utils.blockFaceToYaw(exitFace);
         float endYaw = exitYaw + ((startYaw + 180) - enterYaw);
-
-        TeleportalsPlugin.getInstance().getLogger().info("thisYaw = " + Utils.blockFaceToYaw(thisFace) + " (" + thisFace + ")");
-        TeleportalsPlugin.getInstance().getLogger().info("thatYaw = " + Utils.blockFaceToYaw(thatFace) + " (" + thatFace + ")");
-        TeleportalsPlugin.getInstance().getLogger().info("enterYaw = " + enterYaw + " (" + enterFace + ")");
-        TeleportalsPlugin.getInstance().getLogger().info("exitYaw = " + exitYaw + " (" + exitFace + ")");
-        TeleportalsPlugin.getInstance().getLogger().info("startYaw = " + startYaw);
-        TeleportalsPlugin.getInstance().getLogger().info("endYaw = " + endYaw);
 
         tpLoc.setYaw(endYaw);
         tpLoc.setPitch(entity.getLocation().getPitch());
