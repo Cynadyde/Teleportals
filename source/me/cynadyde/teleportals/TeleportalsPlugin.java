@@ -378,8 +378,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                 Block block = event.getHitBlock();
                 if (block != null && block.getType() == Material.END_GATEWAY && event.getHitBlockFace() != null) {
 
-                    System.out.println("HITTING AN END GATEWAY");
-
                     Teleportal teleportal = Teleportal.getFromStruct(block);
                     if (teleportal != null) {
                         if (shooter instanceof Player) {
@@ -388,7 +386,6 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                                 return;
                             }
                         }
-                        System.out.println("USING A TELEPORTAL");
                         teleportal.teleport(shooter, event.getHitBlockFace());
                     }
                 }
@@ -617,7 +614,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                     else {
                         List<String> blacklist = ymlGroups.getStringList(group + ".worlds-cannot-activate");
                         if (!blacklist.isEmpty()) {
-                            return blacklist.contains(world.getName());
+                            return !blacklist.contains(world.getName());
                         }
 
                     }
