@@ -375,10 +375,10 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
             if (pearl.getShooter() instanceof Entity) {
                 Entity shooter = (Entity) pearl.getShooter();
 
-                launchedPearls.remove(pearl);
-
                 Block block = event.getHitBlock();
                 if (block != null && block.getType() == Material.END_GATEWAY && event.getHitBlockFace() != null) {
+
+                    System.out.println("HITTING AN END GATEWAY");
 
                     Teleportal teleportal = Teleportal.getFromStruct(block);
                     if (teleportal != null) {
@@ -388,6 +388,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
                                 return;
                             }
                         }
+                        System.out.println("USING A TELEPORTAL");
                         teleportal.teleport(shooter, event.getHitBlockFace());
                     }
                 }
@@ -439,7 +440,7 @@ public class TeleportalsPlugin extends JavaPlugin implements Listener {
 
                 ProjectileHitEvent event = new ProjectileHitEvent(pearl, null, hitBlock, hitFace);
                 getServer().getPluginManager().callEvent(event);
-                pearl.remove();
+                getServer().getScheduler().runTaskLater(this, pearl::remove, 2L);
             }
             launchedPearls.remove(pearl);
         }
